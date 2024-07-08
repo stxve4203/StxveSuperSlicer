@@ -194,10 +194,16 @@ void SavePresetDialog::Item::update()
         m_valid_type = ValidationType::NoValid;
     }
 
+<<<<<<< HEAD
     if (m_valid_type == ValidationType::Valid && existing && (existing->is_external)) {
         info_line = m_use_text_ctrl ? _L("This name is used for an external profile name, use another.") :
                              _L("Cannot overwrite an external profile.");
         m_valid_type = ValidationType::NoValid;
+=======
+    if (m_valid_type == Valid && existing && (existing->is_external)) {
+        info_line = _L("Cannot overwrite an external profile. Please choose another name.");
+        m_valid_type = NoValid;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     }
 
     SavePresetDialog* dlg = dynamic_cast<SavePresetDialog*>(m_parent);

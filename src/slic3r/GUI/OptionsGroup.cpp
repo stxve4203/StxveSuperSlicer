@@ -37,7 +37,7 @@ const t_field& OptionsGroup::build_field(const Option& opt) {
     return build_field(opt.opt_id, opt.opt);
 }
 const t_field& OptionsGroup::build_field(const t_config_option_key& id) {
-	const ConfigOptionDef& opt = m_options.at(id).opt;
+    const ConfigOptionDef& opt = m_options.at(id).opt;
     return build_field(id, opt);
 }
 
@@ -60,39 +60,58 @@ const t_field& OptionsGroup::build_field(const t_config_option_key& id, const Co
     case ConfigOptionDef::GUIType::legend: // StaticText
         m_fields.emplace(id, StaticText::Create<StaticText>(this->ctrl_parent(), opt, id));
         break;
-    case ConfigOptionDef::GUIType::one_string:
-        m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
-        break;
     default:
         switch (opt.type) {
             case coFloatOrPercent:
             case coFloatsOrPercents:
             case coFloat:
             case coFloats:
+<<<<<<< HEAD
 			case coPercent:
 			case coPercents:
 			case coString:
 			case coStrings:
+=======
+            case coPercent:
+            case coPercents:
+            case coFloatsOrPercents:
+            case coString:
+            case coStrings:
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
                 m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
                 break;
-			case coBool:
-			case coBools:
+            case coBools:
+                if (id.find('#') == std::string::npos) {
+                    // string field with vector serialization
+                    m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
+                    break;
+                }
+            case coBool:
                 m_fields.emplace(id, CheckBox::Create<CheckBox>(this->ctrl_parent(), opt, id));
-				break;
-			case coInt:
-			case coInts:
+                break;
+            case coInts:
+                if (id.find('#') == std::string::npos) {
+                    // string field with vector serialization
+                    m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
+                    break;
+                }
+            case coInt:
                 m_fields.emplace(id, SpinCtrl::Create<SpinCtrl>(this->ctrl_parent(), opt, id));
-				break;
+                break;
             case coEnum:
                 m_fields.emplace(id, Choice::Create<Choice>(this->ctrl_parent(), opt, id));
-				break;
+                break;
             case coPoint:
             case coPoints:
                 m_fields.emplace(id, PointCtrl::Create<PointCtrl>(this->ctrl_parent(), opt, id));
-				break;
+                break;
+            case coGraph:
+            case coGraphs:
+                m_fields.emplace(id, GraphButton::Create<GraphButton>(this->ctrl_parent(), opt, id));
+                break;
             case coNone:  assert(false); break;
             default:
-				throw Slic3r::LogicError("This control doesn't exist till now"); break;
+                throw Slic3r::LogicError("This control doesn't exist till now"); break;
         }
     }
     // Grab a reference to fields for convenience
@@ -138,6 +157,7 @@ OptionsGroup::OptionsGroup(	wxWindow* _parent, const wxString& title,
                 m_use_custom_ctrl(is_tab_opt),
                 staticbox(title!=""), extra_column(extra_clmn)
 {
+    assert(Tab::fake_build || m_parent);
 }
 
 Option::Option(const ConfigOptionDef& _opt, t_config_option_key id) : opt(_opt), opt_id(id)
@@ -174,7 +194,9 @@ void Line::clear()
 
 wxWindow* OptionsGroup::ctrl_parent() const
 {
-	return this->custom_ctrl && m_use_custom_ctrl_as_parent ? static_cast<wxWindow*>(this->custom_ctrl) : (this->stb ? static_cast<wxWindow*>(this->stb) : this->parent());
+	wxWindow* ret_val = this->custom_ctrl && m_use_custom_ctrl_as_parent ? static_cast<wxWindow*>(this->custom_ctrl) : (this->stb ? static_cast<wxWindow*>(this->stb) : this->parent());
+    assert(ret_val);
+    return ret_val;
 }
 
 bool OptionsGroup::is_legend_line()
@@ -234,7 +256,7 @@ void OptionsGroup::show_field(const t_config_option_key& opt_key, bool show/* = 
 
 void OptionsGroup::append_line(const Line& line)
 {
-	m_lines.emplace_back(line);
+	m_lines.push_back(line);
 
 	if (line.full_width && (
 		line.widget != nullptr ||
@@ -483,10 +505,16 @@ void OptionsGroup::activate_line(Line& line)
                 h_sizer->Add(opt.side_widget(this->ctrl_parent())/*!.target<wxWindow>()*/, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 1);    //! requires verification
             }
 
+<<<<<<< HEAD
             if (opt.opt_id != option_set.back().opt_id) {//! instead of (opt != option_set.back())
                 m_options_mode.back()[opt.opt.mode].push_back(h_sizer->GetItemCount());
                 h_sizer->AddSpacer(6);
             }
+=======
+            if (opt.opt_id != option_set.back().opt_id) //! instead of (opt != option_set.back())
+            m_options_mode.back()[opt.opt.mode].push_back(sizer_tmp->GetItemCount());
+                sizer_tmp->AddSpacer(6);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
         }
     }
 
@@ -642,6 +670,15 @@ void OptionsGroup::update_script_presets(bool init) {
         }
     }
 }
+bool ConfigOptionsGroup::has_option_def(const std::string &opt_key)
+{
+    return this->m_options.find(opt_key) != this->m_options.end();
+}
+const Option *ConfigOptionsGroup::get_option_def(const std::string &opt_key)
+{
+    auto it = this->m_options.find(opt_key);
+    return it == m_options.end() ? nullptr : &it->second;
+}
 
 bool ConfigOptionsGroup::has_option(const std::string& opt_key, int opt_index /*= -1*/)
 {
@@ -653,17 +690,17 @@ bool ConfigOptionsGroup::has_option(const std::string& opt_key, int opt_index /*
     return m_opt_map.find(opt_id) != m_opt_map.end();
 }
 
-Option ConfigOptionsGroup::get_option(const std::string& opt_key, int opt_index /*= -1*/)
+Option ConfigOptionsGroup::create_option_from_def(const std::string &opt_key, int opt_index /*= -1*/)
 {
-	if (!m_config->has(opt_key)) {
-		std::cerr << "No " << opt_key << " in ConfigOptionsGroup config.\n";
-	}
+    if (!m_config->has(opt_key)) {
+        std::cerr << "No " << opt_key << " in ConfigOptionsGroup config.\n";
+    }
 
-	std::string opt_id = opt_index == -1 ? opt_key : opt_key + "#" + std::to_string(opt_index);
-	std::pair<std::string, int> pair(opt_key, opt_index);
-	m_opt_map.emplace(opt_id, pair);
+    std::string                 opt_id = opt_index == -1 ? opt_key : opt_key + "#" + std::to_string(opt_index);
+    std::pair<std::string, int> pair(opt_key, opt_index);
+    m_opt_map.emplace(opt_id, pair);
 
-	return Option(*m_config->def()->get(opt_key), opt_id);
+    return Option(*m_config->def()->get(opt_key), opt_id);
 }
 
 void ConfigOptionsGroup::register_to_search(const std::string& opt_key, const ConfigOptionDef& option_def, int opt_index /*= -1*/, bool reset)
@@ -688,7 +725,7 @@ void ConfigOptionsGroup::on_change_OG(const t_config_option_key& opt_id, const b
 		const std::string  &opt_key   = itOption.first;
 		int 			    opt_index = itOption.second;
 
-		this->change_opt_value(opt_key, value, opt_index == -1 ? 0 : opt_index);
+		this->change_opt_value(opt_key, value, opt_index);
 	}
 
 	OptionsGroup::on_change_OG(opt_id, value);
@@ -723,10 +760,10 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
 	}
 	if (opt_key == "extruders_count") {
 		auto   *nozzle_diameter = dynamic_cast<const ConfigOptionFloats*>(config.option("nozzle_diameter"));
-		value = int(nozzle_diameter->values.size());
+		value = int(nozzle_diameter->size());
 	} else if (opt_key == "milling_count") {
 		auto   *milling_diameter = dynamic_cast<const ConfigOptionFloats*>(config.option("milling_diameter"));
-		value = int(milling_diameter->values.size());
+		value = int(milling_diameter->size());
 	} else if (it_opt != m_options.end() && it_opt->second.opt.is_script) {
         // when a scripted key is reset, reset its deps
         // call the reset function if it exits
@@ -762,8 +799,8 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
                     if (initial_conf.has(dep_key) && edited_conf.has(dep_key)) {
                         ConfigOption* conf_opt = initial_conf.option(dep_key)->clone();
                         // update the field
-                        tab->set_value(dep_key, get_config_value(initial_conf, dep_key));
-                        tab->on_value_change(dep_key, conf_opt->getAny());
+                        tab->set_value(dep_key, initial_conf.option(dep_key)->get_any());
+                        tab->on_value_change(dep_key, conf_opt->get_any());
                     }
                 }
             }
@@ -776,7 +813,7 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
     } else if (it_opt_map == m_opt_map.end() ||
 		    // This option doesn't have corresponded field
              is_option_without_field(opt_key) ) {
-        value = get_config_value(config, opt_key);
+        value = config.option(opt_key)->get_any();
         this->change_opt_value(opt_key, value);
         OptionsGroup::on_change_OG(opt_key, value);
         return;
@@ -784,7 +821,7 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
 		auto opt_id = it_opt_map->first;
 		std::string opt_short_key = m_opt_map.at(opt_id).first;
 		int opt_index = m_opt_map.at(opt_id).second;
-		value = get_config_value(config, opt_short_key, opt_index);
+        value = config.option(opt_short_key)->get_any(opt_index);
 	}
 
     if(set_value(opt_key, value))
@@ -809,7 +846,7 @@ void ConfigOptionsGroup::reload_config()
 		// index in the vector option, zero for scalars
 		int 			   opt_index = kvp.second.second;
 		const ConfigOptionDef &option = m_options.at(opt_id).opt;
-		this->set_value(opt_id, config_value(opt_key, opt_index, option.gui_flags == "serialized"));
+        this->set_value(opt_id, m_config->option(opt_key)->get_any(opt_index));
 	}
     update_script_presets();
 }
@@ -1000,6 +1037,7 @@ void ConfigOptionsGroup::refresh()
         custom_ctrl->Refresh();
 }
 
+<<<<<<< HEAD
 boost::any ConfigOptionsGroup::config_value(const std::string& opt_key, int opt_index, bool deserialize) {
 
 	if (deserialize) {
@@ -1156,6 +1194,8 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicConfig& config, con
 	return ret;
 }
 
+=======
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 Field* ConfigOptionsGroup::get_fieldc(const t_config_option_key& opt_key, int opt_index)
 {
 	Field* field = get_field(opt_key);
@@ -1188,11 +1228,17 @@ std::pair<OG_CustomCtrl*, bool*> ConfigOptionsGroup::get_custom_ctrl_with_blinki
 
 // Change an option on m_config, possibly call ModelConfig::touch().
 void ConfigOptionsGroup::change_opt_value(const t_config_option_key& opt_key, const boost::any& value, int opt_index /*= 0*/)
-
 {
-	Slic3r::GUI::change_opt_value(const_cast<DynamicConfig&>(*m_config), opt_key, value, opt_index);
-	if (m_modelconfig)
-		m_modelconfig->touch();
+    if (m_config_mutable) {
+        ConfigOption *opt = m_config_mutable->option(opt_key);
+        assert(opt);
+        if(opt)
+            opt->set_any(value, opt_index);
+        assert(!m_modelconfig);
+    } else {
+        assert(m_modelconfig);
+        m_modelconfig->set_any(opt_key, value, opt_index);
+    }
 }
 
 wxString OptionsGroup::get_url(const std::string& path_end)
@@ -1217,6 +1263,7 @@ static const std::set<std::string> options_without_field = {
     "compatible_prints",
     "bed_shape",
     "filament_ramming_parameters",
+    "extruder_extrusion_multiplier_speed",
     "gcode_substitutions",
 };
 

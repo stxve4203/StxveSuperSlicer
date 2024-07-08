@@ -53,7 +53,13 @@ public:
         return point.x() >= this->min.x() && point.x() <= this->max.x()
             && point.y() >= this->min.y() && point.y() <= this->max.y();
     }
+<<<<<<< HEAD
     bool contains(const BoundingBoxBase<PointType, PointsType> &other) const {
+=======
+    bool cross(const Line &line) const;
+    bool cross(const Polyline &lines) const;
+    bool contains(const BoundingBoxBase<PointClass> &other) const {
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
         return contains(other.min) && contains(other.max);
     }
     bool overlap(const BoundingBoxBase<PointType, PointsType> &other) const {

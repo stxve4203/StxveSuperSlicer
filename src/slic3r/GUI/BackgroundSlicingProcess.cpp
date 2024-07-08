@@ -201,8 +201,12 @@ void BackgroundSlicingProcess::process_sla()
         	const std::string export_path = m_sla_print->print_statistics().finalize_output_path(m_export_path);
 
             ThumbnailsList thumbnails = this->render_thumbnails(
+<<<<<<< HEAD
                 ThumbnailsParams{current_print()->full_print_config().option<ConfigOptionPoints>("thumbnails")->values, true, true, true, true});
 			m_sla_print->export_print(export_path, thumbnails);
+=======
+                ThumbnailsParams{current_print()->full_print_config().option<ConfigOptionPoints>("thumbnails")->get_values(), true, true, true, true});
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
         } else if (! m_upload_job.empty()) {
 			wxQueueEvent(GUI::wxGetApp().mainframe->m_plater, new wxCommandEvent(m_event_export_began_id));
@@ -796,9 +800,22 @@ void BackgroundSlicingProcess::prepare_upload()
 			m_upload_job.upload_data.upload_path = output_name_str;
     } else if (m_print == m_sla_print) {
 		m_upload_job.upload_data.upload_path = m_sla_print->print_statistics().finalize_output_path(m_upload_job.upload_data.upload_path.string());
+<<<<<<< HEAD
         Vec2ds sizes = current_print()->full_print_config().option<ConfigOptionPoints>("thumbnails")->values;
         ThumbnailsList thumbnails = this->render_thumbnails(ThumbnailsParams{ sizes, true, true, true, true });
         m_sla_print->export_print(source_path.string(),thumbnails, m_upload_job.upload_data.upload_path.filename().string());
+=======
+        
+        ThumbnailsList thumbnails = this->render_thumbnails(
+        	ThumbnailsParams{current_print()->full_print_config().option<ConfigOptionPoints>("thumbnails")->get_values(), true, true, true, true});
+																												 // true, false, true, true); // renders also supports and pad
+        Zipper zipper{source_path.string()};
+        m_sla_archive->export_print(zipper, *m_sla_print, m_upload_job.upload_data.upload_path.string());
+            for (const ThumbnailData& data : thumbnails)
+                if (data.is_valid())
+                    write_thumbnail(zipper, data);
+        zipper.finalize();
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     }
 
     m_print->set_status(100, GUI::format(_L("Scheduling upload to `%1%`. See Window -> Print Host Upload Queue"), m_upload_job.printhost->get_host()));

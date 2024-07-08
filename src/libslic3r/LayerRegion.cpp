@@ -153,9 +153,18 @@ void LayerRegion::make_perimeters(
     const ExPolygons *lower_slices = this->layer()->lower_layer ? &this->layer()->lower_layer->lslices : nullptr;
     const ExPolygons *upper_slices = this->layer()->upper_layer ? &this->layer()->upper_layer->lslices : nullptr;
     
+<<<<<<< HEAD
     size_t perimeters_begin = m_perimeters.size();
     size_t gap_fills_begin = m_thin_fills.size();
     size_t fill_expolygons_begin = fill_expolygons.size();
+=======
+    g.layer                 = this->layer();
+    g.ext_perimeter_flow    = this->flow(frExternalPerimeter);
+    g.overhang_flow         = this->bridging_flow(frPerimeter);
+    g.solid_infill_flow     = this->flow(frSolidInfill);
+    g.use_arachne = (this->layer()->object()->config().perimeter_generator.value == PerimeterGeneratorType::Arachne);
+    g.throw_if_canceled = [this]() { this->layer()->object()->print()->throw_if_canceled(); };
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
     PerimeterGenerator::PerimeterGenerator g{params};
     g.process(
@@ -775,6 +784,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                 for (size_t i = 0; i < bridges.size(); ++ i) {
                     if (bridge_group[i] != group_id)
                         continue;
+<<<<<<< HEAD
                     initial.push_back(std::move(bridges[i].expolygon));
                     polygons_append(grown, bridges_grown[i]);
                 }
@@ -807,6 +817,47 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                     //     svg.draw(initial, "cyan");
                     //     svg.draw(to_lines(lower_layer->lslices), "green", stroke_width);
                     // #endif
+=======
+                    // Collect the initial ungrown regions and the grown polygons.
+                    ExPolygons  initial;
+                    Polygons    grown;
+                    for (size_t i = 0; i < bridges.size(); ++ i) {
+                        if (bridge_group[i] != group_id)
+                            continue;
+                        initial.push_back(std::move(bridges[i].expolygon));
+                        polygons_append(grown, bridges_grown[i]);
+                    }
+                    // detect bridge direction before merging grown surfaces otherwise adjacent bridges
+                    // would get merged into a single one while they need different directions
+                    // also, supply the original expolygon instead of the grown one, because in case
+                    // of very thin (but still working) anchors, the grown expolygon would go beyond them
+                    BridgeDetector bd(
+                        initial,
+                        lower_layer->lslices,
+                        this->bridging_flow(frInfill).scaled_spacing(),
+                        scale_t(this->layer()->object()->print()->config().bridge_precision.get_abs_value(this->bridging_flow(frInfill).spacing())),
+                        this->layer()->id()
+                    );
+                    #ifdef SLIC3R_DEBUG
+                    printf("Processing bridge at layer %zu:\n", this->layer()->id());
+                    #endif
+                    double custom_angle = Geometry::deg2rad(this->region().config().bridge_angle.value);
+                    if (custom_angle > 0) {
+                        // Bridge was not detected (likely it is only supported at one side). Still it is a surface filled in
+                        // using a bridging flow, therefore it makes sense to respect the custom bridging direction.
+                        bridges[idx_last].bridge_angle = custom_angle;
+                    }else if (bd.detect_angle(custom_angle)) {
+                        bridges[idx_last].bridge_angle = bd.angle;
+                        if (this->layer()->object()->has_support()) {
+                            //polygons_append(this->bridged, intersection(bd.coverage(), to_polygons(initial)));
+                            append(this->unsupported_bridge_edges, bd.unsupported_edges());
+                        }
+                    } else {
+                        bridges[idx_last].bridge_angle = 0;
+                    }
+                    // without safety offset, artifacts are generated (GH #2494)
+                    surfaces_append(bottom, union_safety_offset_ex(grown), bridges[idx_last]);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
                 }
 
 // old bridge direction (that fill m_unsupported_bridge_edges as intended)
@@ -941,12 +992,60 @@ void LayerRegion::prepare_fill_surfaces()
     }
 
     // turn too small internal regions into solid regions according to the user setting
-    if (! spiral_vase && this->region().config().fill_density.value > 0) {
+    if (!spiral_vase && this->region().config().fill_density.value > 0) {
+        // apply solid_infill_below_area
         // scaling an area requires two calls!
         double min_area = scale_(scale_(this->region().config().solid_infill_below_area.value));
+<<<<<<< HEAD
         for (Surface &surface : m_fill_surfaces)
             if (surface.has_fill_sparse() && surface.has_pos_internal() && surface.area() <= min_area)
                 surface.surface_type = stPosInternal | stDensSolid;
+=======
+        for (Surfaces::iterator surface = this->fill_surfaces.surfaces.begin();
+             surface != this->fill_surfaces.surfaces.end(); ++surface) {
+            if (surface->has_fill_sparse() && surface->has_pos_internal() && surface->area() <= min_area)
+                surface->surface_type = stPosInternal | stDensSolid;
+        }
+        // also Apply solid_infill_below_width
+        double   spacing            = this->flow(frSolidInfill).spacing();
+        coordf_t scaled_spacing     = scale_d(spacing);
+        coordf_t min_half_width = scale_d(this->region().config().solid_infill_below_width.get_abs_value(spacing)) / 2;
+        if (min_half_width > 0) {
+            Surfaces srfs_to_add;
+            for (Surfaces::iterator surface = this->fill_surfaces.surfaces.begin();
+                 surface != this->fill_surfaces.surfaces.end(); ++surface) {
+                if (surface->has_fill_sparse() && surface->has_pos_internal()) {
+                    // try to collapse the surface
+                    // grow it a bit more to have an easy time to intersect
+                    ExPolygons results = offset2_ex({surface->expolygon}, -min_half_width - SCALED_EPSILON,
+                                                    min_half_width + SCALED_EPSILON +
+                                                        std::min(scaled_spacing / 5, min_half_width / 5));
+                    // TODO: find a way to have both intersect & cut
+                    ExPolygons cut = diff_ex(ExPolygons{surface->expolygon}, results);
+                    ExPolygons intersect = intersection_ex(ExPolygons{surface->expolygon}, results);
+                    if (intersect.size() == 1 && cut.empty())
+                        continue;
+                    if (!intersect.empty()) {
+                        //not possible ot have multiple intersect no cut from a single expoly.
+                        assert(!cut.empty());
+                        surface->expolygon = std::move(intersect[0]);
+                        for (int i = 1; i < intersect.size(); i++) {
+                            srfs_to_add.emplace_back(*surface, std::move(intersect[i]));
+                        }
+                        for (ExPolygon& expoly : cut) {
+                            srfs_to_add.emplace_back(*surface, std::move(expoly));
+                            srfs_to_add.back().surface_type = stPosInternal | stDensSolid;
+                        }
+                    } else {
+                        //no intersec => all in solid
+                        assert(cut.size() == 1);
+                        surface->surface_type = stPosInternal | stDensSolid;
+                    }
+                }
+            }
+            append(this->fill_surfaces.surfaces, std::move(srfs_to_add));
+        }
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     }
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     export_region_slices_to_svg_debug("2_prepare_fill_surfaces-final");

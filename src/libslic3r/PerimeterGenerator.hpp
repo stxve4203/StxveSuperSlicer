@@ -189,7 +189,21 @@ public:
     const ExPolygons            *lower_slices;
     const SurfaceCollection     *slices;
     const ExPolygons            *upper_slices;
+<<<<<<< HEAD
     Parameters             params;
+=======
+    const ExPolygons            *lower_slices;
+    Layer                       *layer;
+    Flow                         perimeter_flow;
+    Flow                         ext_perimeter_flow;
+    Flow                         overhang_flow; // ie bridging flow
+    Flow                         solid_infill_flow;
+    const PrintRegionConfig     *config;
+    const PrintObjectConfig     *object_config;
+    const PrintConfig           *print_config;
+    bool                         use_arachne = false;
+    std::function<void()>        throw_if_canceled = []() {};
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     // Outputs:
     
     PerimeterGenerator(const Parameters &params) : params(params) {}
@@ -218,12 +232,29 @@ private:
     // ClipperLib_Z::Paths _lower_slices_bridge_speed_big_clipperpaths;
 
     //process data
+<<<<<<< HEAD
     // computed params
     ExPolygons unmillable;
     coord_t mill_extra_size;
 
     ProcessSurfaceResult process_classic(const Parameters &params, int& loop_number, const Surface& surface, ExtrusionEntityCollection &loops, ExtrusionEntityCollection &gapfill);
     ProcessSurfaceResult process_arachne(const Parameters &params, int& loop_number, const Surface& surface, ExtrusionEntityCollection &loops);
+=======
+    coord_t perimeter_width; coord_t get_perimeter_width() { return perimeter_width; }
+    coord_t perimeter_spacing; coord_t get_perimeter_spacing() { return perimeter_spacing; }
+    coord_t ext_perimeter_width; coord_t get_ext_perimeter_width() { return ext_perimeter_width; }
+    coord_t ext_perimeter_spacing; coord_t get_ext_perimeter_spacing() { return ext_perimeter_spacing; }
+    coord_t ext_perimeter_spacing2; coord_t get_ext_perimeter_spacing2() { return ext_perimeter_spacing2; }
+    coord_t infill_gap; coord_t get_infill_gap() { return infill_gap; }
+    coord_t solid_infill_spacing; coord_t get_solid_infill_spacing() { return solid_infill_spacing; }
+    bool round_peri;
+    coord_t min_round_spacing; coord_t get_min_round_spacing() { return min_round_spacing; }
+    ExPolygons unmillable;
+    coord_t mill_extra_size;
+
+    ProcessSurfaceResult process_classic(int& contour_count, int& holes_count, const Surface& surface);
+    ProcessSurfaceResult process_arachne(int& loop_number, const Surface& surface);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     
     void        processs_no_bridge(const Parameters params, Surfaces& all_surfaces, ExPolygons &fill_surfaces);
     ExtrusionPaths create_overhangs_classic(const Parameters &params,
@@ -246,9 +277,20 @@ private:
     ExtrusionLoop _extrude_and_cut_loop(const Parameters &params,
         const PerimeterGeneratorLoop& loop, const Point entryPoint, const Line& direction = Line(Point(0, 0), Point(0, 0)), bool enforce_loop = false) const;
     // sub-function of _traverse_and_join_loops, find the good splot to cut a loop to be able to join it with an other one
+<<<<<<< HEAD
     PerimeterIntersectionPoint _get_nearest_point(const Parameters &params,
         const PerimeterGeneratorLoops &children, ExtrusionLoop &myPolylines, const coord_t dist_cut, const coord_t max_dist) const;
 
+=======
+    PerimeterIntersectionPoint _get_nearest_point(const PerimeterGeneratorLoops &children, ExtrusionLoop &myPolylines, const coord_t dist_cut, const coord_t max_dist) const;
+    // for one_peri_on_top
+    void split_top_surfaces(const ExPolygons *lower_slices,
+                            const ExPolygons *upper_slices,
+                            const ExPolygons &orig_polygons,
+                            ExPolygons &      top_fills,
+                            ExPolygons &      non_top_polygons,
+                            ExPolygons &      fill_clip);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
 };
 

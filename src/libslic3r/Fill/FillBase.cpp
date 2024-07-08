@@ -171,6 +171,7 @@ std::pair<float, Point> Fill::_infill_direction(const Surface *surface) const
 //        printf("Layer_ID undefined!\n");
     }
 
+    //why?
     out_angle += float(M_PI/2.);
     return std::pair<float, Point>(out_angle, out_shift);
 }
@@ -182,17 +183,7 @@ double Fill::compute_unscaled_volume_to_fill(const Surface* surface, const FillP
     } else {
         for (const ExPolygon& poly : intersection_ex(ExPolygons{ surface->expolygon }, this->no_overlap_expolygons)) {
             polyline_volume += params.flow.height() * unscaled(unscaled(poly.area()));
-            double perimeter_gap_usage = params.config->perimeter_overlap.get_abs_value(1);
-            // add external "perimeter gap"
-            //TODO: use filament_max_overlap to reduce it 
-            //double filament_max_overlap = params.config->get_computed_value("filament_max_overlap", params.extruder - 1);
-            double perimeter_round_gap = unscaled(poly.contour.length()) * params.flow.height() * (1 - 0.25 * PI) * 0.5;
-            // add holes "perimeter gaps"
-            double holes_gaps = 0;
-            for (auto hole = poly.holes.begin(); hole != poly.holes.end(); ++hole) {
-                holes_gaps += unscaled(hole->length()) * params.flow.height() * (1 - 0.25 * PI) * 0.5;
-            }
-            polyline_volume += (perimeter_round_gap + holes_gaps) * perimeter_gap_usage;
+            //note: the no_overlap_expolygons is already at spacing from the centerline of the perimeter.
         }
     }
     return polyline_volume;
@@ -228,7 +219,7 @@ void Fill::fill_surface_extrusion(const Surface *surface, const FillParams &para
                     good_role,
                     used_flow,
                     used_flow.scaled_width() / 8,
-                    true);
+                    !params.monotonic);
                 // compute the path of the nozzle -> extruded volume
                 for (const ExtrusionEntity* entity : entities) {
                     extruded_volume += entity->total_volume();
@@ -236,12 +227,14 @@ void Fill::fill_surface_extrusion(const Surface *surface, const FillParams &para
                 //append (move so the pointers are reused, and won't need to be deleted)
                 all_new_paths->append(std::move(entities));
             }
+            if(params.monotonic)
+                all_new_paths->set_can_sort_reverse(false, false);
             thick_polylines.clear();
 
 
             // ensure it doesn't over or under-extrude
-            double mult_flow = 1;
             if (!params.dont_adjust && params.full_infill() && !params.flow.bridge() && params.fill_exactly) {
+            double mult_flow = 1;
                 // compute real volume
                 double polyline_volume = compute_unscaled_volume_to_fill(surface, params);
                 if (extruded_volume != 0 && polyline_volume != 0) mult_flow *= polyline_volume / extruded_volume;
@@ -307,6 +300,9 @@ void Fill::fill_surface_extrusion(const Surface *surface, const FillParams &para
                 if (mult_flow < 0.8) mult_flow = 0.8;
                 BOOST_LOG_TRIVIAL(info) << "Layer " << layer_id << ": Fill process extrude " << extruded_volume << " mm3 for a volume of " << polyline_volume << " mm3 : we mult the flow by " << mult_flow;
             }
+#if _DEBUG
+            this->debug_verify_flow_mult = mult_flow;
+#endif
 
             // Save into layer.
             auto* eec = new ExtrusionEntityCollection();
@@ -317,12 +313,22 @@ void Fill::fill_surface_extrusion(const Surface *surface, const FillParams &para
             //get the role
             ExtrusionRole good_role = getRoleFromSurfaceType(params, surface);
             /// push the path
+<<<<<<< HEAD
             extrusion_entities_append_paths(eec->set_entities(), std::move(simple_polylines),
                                             ExtrusionAttributes{good_role,
                                                                 ExtrusionFlow{params.flow.mm3_per_mm() * params.flow_mult * mult_flow,
                                                                               (float) (params.flow.width() * params.flow_mult * mult_flow),
                                                                               (float) params.flow.height()}},
                                             true);
+=======
+            extrusion_entities_append_paths(
+                *eec, std::move(simple_polylines),
+                good_role,
+                params.flow.mm3_per_mm()* params.flow_mult * mult_flow,
+                (float)(params.flow.width()* params.flow_mult * mult_flow),
+                (float)params.flow.height(),
+                !params.monotonic);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
         }
     } catch (InfillFailedException&) {
     }
@@ -331,10 +337,16 @@ void Fill::fill_surface_extrusion(const Surface *surface, const FillParams &para
 
 
 
-coord_t Fill::_line_spacing_for_density(float density) const
+coord_t Fill::_line_spacing_for_density(const FillParams& params) const
 {
+<<<<<<< HEAD
     assert(get_spacing() >= 0);
     return scale_t(this->get_spacing() / density);
+=======
+    if(params.max_sparse_infill_spacing > 0)
+        return scale_t(params.max_sparse_infill_spacing / params.density);
+    return scale_t(this->get_spacing() / params.density);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 }
 
 //FIXME: add recent improvmeent from perimetergenerator: avoid thick gapfill
@@ -367,7 +379,7 @@ Fill::do_gap_fill(const ExPolygons& gapfill_areas, const FillParams& params, Ext
         for (ThickPolyline poly : polylines_gapfill) {
             for (coord_t width : poly.points_width) {
                 if (width > params.flow.scaled_width() * 2.2) {
-                    std::cerr << "ERRROR!!!! gapfill width = " << unscaled(width) << " > max_width = " << (params.flow.width() * 2) << "\n";
+                    BOOST_LOG_TRIVIAL(error) << "ERRROR!!!! gapfill width = " << unscaled(width) << " > max_width = " << (params.flow.width() * 2) << "\n";
                 }
             }
         }
@@ -649,13 +661,13 @@ Points getFrontier(Polylines& polylines, const Point& p1, const Point& p2, const
 /// return the connected polylines in polylines_out. Can output polygons (stored as polylines with first_point = last_point).
 /// complexity: worst: N(infill_ordered.points) x N(boundary.points)
 ///             typical: N(infill_ordered) x ( N(boundary.points) + N(infill_ordered.points) )
-void connect_infill(const Polylines& infill_ordered, const ExPolygon& boundary, Polylines& polylines_out, const double spacing, const FillParams& params) {
+void connect_infill(const Polylines& infill_ordered, const ExPolygon& boundary, Polylines& polylines_out, const coord_t spacing, const FillParams& params) {
 
     //TODO: fallback to the quick & dirty old algorithm when n(points) is too high.
     Polylines polylines_frontier = to_polylines(to_polygons(boundary));
 
     Polylines polylines_blocker;
-    coord_t clip_size = scale_(spacing) * 2;
+    coord_t clip_size = (spacing) * 2;
     for (const Polyline& polyline : infill_ordered) {
         if (polyline.length() > 2.01 * clip_size) {
             polylines_blocker.push_back(polyline);
@@ -675,8 +687,8 @@ void connect_infill(const Polylines& infill_ordered, const ExPolygon& boundary, 
             Points& pts_end = polylines_connected_first.back().points;
             const Point& last_point = pts_end.back();
             const Point& first_point = polyline.points.front();
-            if (last_point.distance_to(first_point) < scale_(spacing) * 10) {
-                Points pts_frontier = getFrontier(polylines_frontier, last_point, first_point, scale_(spacing), polylines_blocker, scale_(ideal_length) * 2);
+            if (last_point.distance_to(first_point) < (spacing) * 10) {
+                Points pts_frontier = getFrontier(polylines_frontier, last_point, first_point, (spacing), polylines_blocker, (ideal_length) * 2);
                 if (!pts_frontier.empty()) {
                     // The lines can be connected.
                     pts_end.insert(pts_end.end(), pts_frontier.begin(), pts_frontier.end());
@@ -701,7 +713,7 @@ void connect_infill(const Polylines& infill_ordered, const ExPolygon& boundary, 
             const Point& first_point = polyline.points.front();
 
             Polylines before = polylines_frontier;
-            Points pts_frontier = getFrontier(polylines_frontier, last_point, first_point, scale_(spacing), polylines_blocker);
+            Points pts_frontier = getFrontier(polylines_frontier, last_point, first_point, (spacing), polylines_blocker);
             if (!pts_frontier.empty()) {
                 // The lines can be connected.
                 pts_end.insert(pts_end.end(), pts_frontier.begin(), pts_frontier.end());
@@ -738,7 +750,7 @@ void connect_infill(const Polylines& infill_ordered, const ExPolygon& boundary, 
             Points pts_frontier = getFrontier(polylines_frontier,
                 switch_id1 ? polylines_connected[idx1].first_point() : polylines_connected[idx1].last_point(),
                 switch_id2 ? polylines_connected[min_idx].last_point() : polylines_connected[min_idx].first_point(),
-                scale_(spacing), polylines_blocker);
+                (spacing), polylines_blocker);
             if (!pts_frontier.empty()) {
                 if (switch_id1) polylines_connected[idx1].reverse();
                 if (switch_id2) polylines_connected[min_idx].reverse();
@@ -752,7 +764,7 @@ void connect_infill(const Polylines& infill_ordered, const ExPolygon& boundary, 
 
     //try to create some loops if possible
     for (Polyline& polyline : polylines_connected) {
-        Points pts_frontier = getFrontier(polylines_frontier, polyline.last_point(), polyline.first_point(), scale_(spacing), polylines_blocker);
+        Points pts_frontier = getFrontier(polylines_frontier, polyline.last_point(), polyline.first_point(), (spacing), polylines_blocker);
         if (!pts_frontier.empty()) {
             polyline.points.insert(polyline.points.end(), pts_frontier.begin(), pts_frontier.end());
             polyline.points.insert(polyline.points.begin(), polyline.points.back());
@@ -1073,7 +1085,7 @@ namespace PrusaSimpleConnect {
         }
     }
 
-    void connect_infill(Polylines &&infill_ordered, const ExPolygon &boundary_src, Polylines &polylines_out, const double spacing, const FillParams &params)
+    void connect_infill(Polylines &&infill_ordered, const ExPolygon &boundary_src, Polylines &polylines_out, const coord_t spacing, const FillParams &params)
     {
         assert(!infill_ordered.empty());
         assert(!boundary_src.contour.points.empty());
@@ -1152,16 +1164,16 @@ namespace PrusaSimpleConnect {
 
         // Mark the points and segments of split boundary as consumed if they are very close to some of the infill line.
         {
-            // @supermerill used 2. * scale_(spacing)
-            const double clip_distance = 3. * scale_(spacing);
-            const double distance_colliding = 1.1 * scale_(spacing);
+            // @supermerill used 2. * (spacing)
+            const double clip_distance = 3. * (spacing);
+            const double distance_colliding = 1.1 * (spacing);
             mark_boundary_segments_touching_infill(boundary, boundary_data, bbox, infill_ordered, clip_distance, distance_colliding);
         }
 
         // Connection from end of one infill line to the start of another infill line.
-        //const float length_max = scale_(spacing);
-    //	const float length_max = scale_((2. / params.density) * spacing);
-        const coord_t length_max = scale_((1000. / params.density) * spacing);
+        //const float length_max = (spacing);
+    //	const float length_max = ((2. / params.density) * spacing);
+        const coord_t length_max = ((1000. / params.density) * spacing);
         std::vector<size_t> merged_with(infill_ordered.size());
         for (size_t i = 0; i < merged_with.size(); ++i)
             merged_with[i] = i;
@@ -2189,7 +2201,7 @@ void mark_boundary_segments_touching_infill(
     assert(validate_boundary_intersections(boundary_intersections));
 }
 
-void connect_infill(Polylines&& infill_ordered, const ExPolygon& boundary_src, Polylines& polylines_out, const double spacing, const FillParams& params)
+void connect_infill(Polylines&& infill_ordered, const ExPolygon& boundary_src, Polylines& polylines_out, const coord_t spacing, const FillParams& params)
 {
     assert(!boundary_src.contour.points.empty());
     auto polygons_src = reserve_vector<const Polygon*>(boundary_src.holes.size() + 1);
@@ -2202,7 +2214,7 @@ void connect_infill(Polylines&& infill_ordered, const ExPolygon& boundary_src, P
     connect_infill(std::move(infill_ordered), polygons_src, get_extents(boundary_src.contour), polylines_out, spacing, params);
 }
 
-void connect_infill(Polylines&& infill_ordered, const Polygons& boundary_src, const BoundingBox& bbox, Polylines& polylines_out, const double spacing, const FillParams& params)
+void connect_infill(Polylines&& infill_ordered, const Polygons& boundary_src, const BoundingBox& bbox, Polylines& polylines_out, const coord_t spacing, const FillParams& params)
 {
     auto polygons_src = reserve_vector<const Polygon*>(boundary_src.size());
     for (const Polygon& polygon : boundary_src)
@@ -2305,7 +2317,7 @@ static inline void mark_boundary_segments_overlapping_infill(
     // Infill lines, either completely inside the boundary, or touching the boundary.
     const Polylines                                        &infill,
     // Spacing (width) of the infill lines.
-    const double                                            spacing)
+    const coord_t                                            spacing)
 {
     for (ContourIntersectionPoint &cp : graph.map_infill_end_point_to_boundary) {
         const Points                &contour         = graph.boundary[cp.contour_idx];
@@ -2380,7 +2392,7 @@ static inline void mark_boundary_segments_overlapping_infill(
     }
 }
 
-BoundaryInfillGraph create_boundary_infill_graph(const Polylines &infill_ordered, const std::vector<const Polygon*> &boundary_src, const BoundingBox &bbox, const double spacing)
+BoundaryInfillGraph create_boundary_infill_graph(const Polylines &infill_ordered, const std::vector<const Polygon*> &boundary_src, const BoundingBox &bbox, const coord_t spacing)
 {
     BoundaryInfillGraph out;
     out.boundary.assign(boundary_src.size(), Points());
@@ -2504,12 +2516,12 @@ BoundaryInfillGraph create_boundary_infill_graph(const Polylines &infill_ordered
 
         // Mark the points and segments of split out.boundary as consumed if they are very close to some of the infill line.
         {
-            // @supermerill used 2. * scale_(spacing)
-            const double clip_distance = 1.7 * scale_(spacing);
+            // @supermerill used 2. * (spacing)
+            const double clip_distance = 1.7 * (spacing);
             // Allow a bit of overlap. This value must be slightly higher than the overlap of FillAdaptive, otherwise
             // the anchors of the adaptive infill will mask the other side of the perimeter line.
             // (see connect_lines_using_hooks() in FillAdaptive.cpp)
-            const double distance_colliding = 0.8 * scale_(spacing);
+            const double distance_colliding = 0.8 * (spacing);
             mark_boundary_segments_touching_infill(out.boundary, out.boundary_params, boundary_intersection_points, bbox, infill_ordered, clip_distance, distance_colliding);
         }
     }
@@ -2517,7 +2529,7 @@ BoundaryInfillGraph create_boundary_infill_graph(const Polylines &infill_ordered
     return out;
 }
 
-void connect_infill(Polylines &&infill_ordered, const std::vector<const Polygon*> &boundary_src, const BoundingBox &bbox, Polylines &polylines_out, const double spacing, const FillParams &params)
+void connect_infill(Polylines &&infill_ordered, const std::vector<const Polygon*> &boundary_src, const BoundingBox &bbox, Polylines &polylines_out, const coord_t spacing, const FillParams &params)
 {
 	assert(! infill_ordered.empty());
     assert(params.anchor_length     >= 0.);
@@ -2564,13 +2576,13 @@ void connect_infill(Polylines &&infill_ordered, const std::vector<const Polygon*
         return std::numeric_limits<size_t>::max();
     };
 
-    const double line_half_width = 0.5 * scale_(spacing);
+    const double line_half_width = 0.5 * (spacing);
 
 #if 0
     // Connection from end of one infill line to the start of another infill line.
-    //const double length_max = scale_(spacing);
-//  const auto length_max = double(scale_((2. / params.density) * spacing));
-    const auto length_max = double(scale_((1000. / params.density) * spacing));
+    //const double length_max = (spacing);
+//  const auto length_max = double(((2. / params.density) * spacing));
+    const auto length_max = double(((1000. / params.density) * spacing));
     struct ConnectionCost {
         ConnectionCost(size_t idx_first, double cost, bool reversed) : idx_first(idx_first), cost(cost), reversed(reversed) {}
         size_t  idx_first;
@@ -2765,7 +2777,7 @@ void connect_infill(Polylines &&infill_ordered, const std::vector<const Polygon*
 
 // Extend the infill lines along the perimeters, this is mainly useful for grid aligned support, where a perimeter line may be nearly
 // aligned with the infill lines.
-static inline void base_support_extend_infill_lines(Polylines &infill, BoundaryInfillGraph &graph, const double spacing, const FillParams &params)
+static inline void base_support_extend_infill_lines(Polylines &infill, BoundaryInfillGraph &graph, const coord_t line_spacing, const FillParams &params)
 {
 /*
     // Backup the source lines.
@@ -2773,8 +2785,6 @@ static inline void base_support_extend_infill_lines(Polylines &infill, BoundaryI
     lines.reserve(linfill.size());
     std::transform(infill.begin(), infill.end(), std::back_inserter(lines), [](const Polyline &pl) { assert(pl.size() == 2); return Line(pl.points.begin(), pl.points.end()); });
 */
-
-    const double    line_spacing    = scale_(spacing) / params.density;
     // Maximum deviation perpendicular to the infill line to allow merging as a continuation of the same infill line.
     const auto      dist_max_x      = coord_t(line_spacing * 0.33);
     // Minimum length of the arc away from the infill end point to allow merging as a continuation of the same infill line.
@@ -3134,7 +3144,7 @@ static double evaluate_support_arch_cost(const Polyline &pl)
 }
 
 // Costs for prev / next arch of each infill line end point.
-static inline std::vector<SupportArcCost> evaluate_support_arches(Polylines &infill, BoundaryInfillGraph &graph, const double spacing, const FillParams &params)
+static inline std::vector<SupportArcCost> evaluate_support_arches(Polylines &infill, BoundaryInfillGraph &graph, const FillParams &params)
 {
     std::vector<SupportArcCost> arches(graph.map_infill_end_point_to_boundary.size() * 2);
 
@@ -3180,12 +3190,14 @@ static inline std::vector<SupportArcCost> evaluate_support_arches(Polylines &inf
 } // end namespace FakePerimeterConnect
 
 // Both the poly_with_offset and polylines_out are rotated, so the infill lines are strictly vertical.
-void Fill::connect_base_support(Polylines &&infill_ordered, const std::vector<const Polygon*> &boundary_src, const BoundingBox &bbox, Polylines &polylines_out, const double spacing, const FillParams &params)
+void Fill::connect_base_support(Polylines &&infill_ordered, const std::vector<const Polygon*> &boundary_src, const BoundingBox &bbox, Polylines &polylines_out, const coord_t line_spacing, const FillParams &params)
 {
 //    assert(! infill_ordered.empty());
     assert(params.anchor_length     >= 0.);
     assert(params.anchor_length_max >= 0.01f);
     assert(params.anchor_length_max >= params.anchor_length);
+
+    coord_t spacing = line_spacing * params.density;
 
     FakePerimeterConnect::BoundaryInfillGraph graph = FakePerimeterConnect::create_boundary_infill_graph(infill_ordered, boundary_src, bbox, spacing);
 
@@ -3195,15 +3207,14 @@ void Fill::connect_base_support(Polylines &&infill_ordered, const std::vector<co
     export_partial_infill_to_svg(debug_out_path("connect_base_support-initial-%03d.svg", iRun), graph, infill_ordered, polylines_out);
 #endif // INFILL_DEBUG_OUTPUT
 
-    const double        line_half_width = 0.5 * scale_(spacing);
-    const double        line_spacing    = scale_(spacing) / params.density;
+    const double        line_half_width = 0.5 * spacing;
     const double        min_arch_length = 1.3 * line_spacing;
     const double        trim_length     = line_half_width * 0.3;
 
 // After mark_boundary_segments_touching_infill() marks boundary segments overlapping trimmed infill lines,
 // there are possibly some very short boundary segments unmarked, but overlapping the untrimmed infill lines fully.
 // Mark those short boundary segments.
-    mark_boundary_segments_overlapping_infill(graph, infill_ordered, scale_(spacing));
+    mark_boundary_segments_overlapping_infill(graph, infill_ordered, spacing);
 
 #ifdef INFILL_DEBUG_OUTPUT
     export_partial_infill_to_svg(debug_out_path("connect_base_support-marked-%03d.svg", iRun), graph, infill_ordered, polylines_out);
@@ -3259,7 +3270,7 @@ void Fill::connect_base_support(Polylines &&infill_ordered, const std::vector<co
     export_partial_infill_to_svg(debug_out_path("connect_base_support-excess-%03d.svg", iRun), graph, infill_ordered, polylines_out);
 #endif // INFILL_DEBUG_OUTPUT
 
-    base_support_extend_infill_lines(infill_ordered, graph, spacing, params);
+    base_support_extend_infill_lines(infill_ordered, graph, line_spacing, params);
     
 #ifdef INFILL_DEBUG_OUTPUT
     export_partial_infill_to_svg(debug_out_path("connect_base_support-extended-%03d.svg", iRun), graph, infill_ordered, polylines_out);
@@ -3396,7 +3407,7 @@ void Fill::connect_base_support(Polylines &&infill_ordered, const std::vector<co
     export_partial_infill_to_svg(debug_out_path("connect_base_support-vertical-%03d.svg", iRun), graph, infill_ordered, polylines_out);
 #endif // INFILL_DEBUG_OUTPUT
 
-    const std::vector<FakePerimeterConnect::SupportArcCost> arches = FakePerimeterConnect::evaluate_support_arches(infill_ordered, graph, spacing, params);
+    const std::vector<FakePerimeterConnect::SupportArcCost> arches = FakePerimeterConnect::evaluate_support_arches(infill_ordered, graph, params);
     static const double cost_low      = line_spacing * 1.3;
     static const double cost_high     = line_spacing * 2.;
     static const double cost_veryhigh = line_spacing * 3.;
@@ -3635,16 +3646,16 @@ void Fill::connect_base_support(Polylines &&infill_ordered, const std::vector<co
             polylines_out.emplace_back(std::move(pl));
 }
 
-void Fill::connect_base_support(Polylines &&infill_ordered, const Polygons &boundary_src, const BoundingBox &bbox, Polylines &polylines_out, const double spacing, const FillParams &params)
+void Fill::connect_base_support(Polylines &&infill_ordered, const Polygons &boundary_src, const BoundingBox &bbox, Polylines &polylines_out, const coord_t line_spacing, const FillParams &params)
 {
     auto polygons_src = reserve_vector<const Polygon*>(boundary_src.size());
     for (const Polygon &polygon : boundary_src)
         polygons_src.emplace_back(&polygon);
 
-    connect_base_support(std::move(infill_ordered), polygons_src, bbox, polylines_out, spacing, params);
+    connect_base_support(std::move(infill_ordered), polygons_src, bbox, polylines_out, line_spacing, params);
 }
 
-void Fill::connect_infill(Polylines&& infill_ordered, const ExPolygon& boundary, Polylines& polylines_out, const double spacing, const FillParams& params) {
+void Fill::connect_infill(Polylines&& infill_ordered, const ExPolygon& boundary, Polylines& polylines_out, const coord_t spacing, const FillParams& params) {
     if (params.anchor_length_max == 0) {
         PrusaSimpleConnect::connect_infill(std::move(infill_ordered), boundary, polylines_out, spacing, params);
     } else {
@@ -3652,7 +3663,7 @@ void Fill::connect_infill(Polylines&& infill_ordered, const ExPolygon& boundary,
     }
 }
 
-void Fill::connect_infill(Polylines&& infill_ordered, const ExPolygon& boundary, const Polygons& polygons_src, Polylines& polylines_out, const double spacing, const FillParams& params) {
+void Fill::connect_infill(Polylines&& infill_ordered, const ExPolygon& boundary, const Polygons& polygons_src, Polylines& polylines_out, const coord_t spacing, const FillParams& params) {
     if (params.anchor_length_max == 0) {
         PrusaSimpleConnect::connect_infill(std::move(infill_ordered), boundary, polylines_out, spacing, params);
     } else {
@@ -3673,9 +3684,11 @@ FillWithPerimeter::fill_surface_extrusion(const Surface* surface, const FillPara
 
     // === extrude perimeter & associated surface at the same time, in the right order ===
     //generate perimeter:
-    ExPolygons path_perimeter = offset2_ex(ExPolygons{ surface->expolygon },
-        scale_d(-this->get_spacing()), scale_d(this->get_spacing() / 2),
-        ClipperLib::jtMiter, scale_d(this->get_spacing()) * 10);
+    coord_t offset_for_overlap = scale_d(this->get_spacing() / 2) * ((1 - overlap_ratio) / 2);
+    ExPolygons path_perimeter  = offset2_ex(ExPolygons{surface->expolygon},
+                                            scale_d(-this->get_spacing()) / 2 - offset_for_overlap,
+                                            offset_for_overlap,
+                                            ClipperLib::jtMiter, scale_d(this->get_spacing()) * 10);
     //fix a bug that can happens when (positive) offsetting with a big miter limit and two island merge. See https://github.com/supermerill/SuperSlicer/issues/609
     path_perimeter = intersection_ex(path_perimeter, offset_ex(surface->expolygon, scale_d(-this->get_spacing() / 2)));
     for (ExPolygon& expolygon : path_perimeter) {
@@ -3701,7 +3714,7 @@ FillWithPerimeter::fill_surface_extrusion(const Surface* surface, const FillPara
             ExtrusionRole good_role = getRoleFromSurfaceType(params, surface);
             /// push the path
             extrusion_entities_append_paths(
-                eec_peri->set_entities(),
+                *eec_peri,
                 polylines_peri,
                 ExtrusionAttributes{good_role, ExtrusionFlow{params.flow.mm3_per_mm() * params.flow_mult,
                                                              params.flow.width() * params.flow_mult,
@@ -3725,11 +3738,20 @@ FillWithPerimeter::fill_surface_extrusion(const Surface* surface, const FillPara
                     ExtrusionRole good_role = getRoleFromSurfaceType(params, surface);
                     /// push the path
                     extrusion_entities_append_paths(
+<<<<<<< HEAD
                         eec_infill->set_entities(), polys_infill,
                                                     ExtrusionAttributes{good_role, ExtrusionFlow{params.flow.mm3_per_mm() * params.flow_mult,
                                                                                                  params.flow.width() * params.flow_mult,
                                                                                                  params.flow.height()}},
                                                     true);
+=======
+                        *eec_infill,
+                        polys_infill,
+                        good_role,
+                        params.flow.mm3_per_mm() * params.flow_mult,
+                        params.flow.width() * params.flow_mult,
+                        params.flow.height());
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
                 }
             }
         }

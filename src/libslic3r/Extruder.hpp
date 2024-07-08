@@ -10,6 +10,8 @@
 #ifndef slic3r_Extruder_hpp_
 #define slic3r_Extruder_hpp_
 
+#include <optional>
+
 #include "libslic3r.h"
 #include "GCode/GcodeFormatter.hpp"
 #include "Point.hpp"
@@ -34,6 +36,7 @@ public:
 
     uint16_t id() const { return m_id; }
 
+<<<<<<< HEAD
     // Following three methods emit:
     // first  - extrusion delta
     // second - number to emit to G-code: This may be delta for relative mode or a distance from last reset_E() for absolute mode.
@@ -50,6 +53,15 @@ public:
     // Reset the current state of the E axis (this is only needed for relative extruder addressing mode anyways).
     // Returns true if the extruder was non-zero before reset.
     bool   reset_E() { bool modified = m_E != 0; m_E = 0.; return modified; }
+=======
+    virtual double extrude(double dE);
+    virtual double retract(double length, std::optional<double> restart_extra, std::optional<double> restart_extra_from_toolchange);
+    virtual double need_unretract();
+    virtual double unretract();
+    virtual void   reset_retract();
+    double E() const { return m_E; }
+    void   reset_E() { m_E = 0.; }
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     double e_per_mm(double mm3_per_mm) const { return mm3_per_mm * m_e_per_mm3; }
     double e_per_mm3() const { return m_e_per_mm3; }
     // Used filament volume in mm^3.

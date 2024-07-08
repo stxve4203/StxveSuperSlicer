@@ -145,8 +145,19 @@ void CopyrightsDialog::fill_entries()
                             , "Open Cascade SAS"                            , "https://github.com/Open-Cascade-SAS/OCCT" },
         { "Arc Welder"
                             , "Brad Hochgesang"                             , "https://github.com/FormerLurker/ArcWelderLib/" },
+<<<<<<< HEAD
         { "BambuStudio"
                             , "bambulab"                                    , "https://github.com/bambulab/BambuStudio" },
+=======
+        { "AngelScript"
+                            , "Andreas Jönsson"                             , "https://www.angelcode.com/angelscript/" },
+        { "JSON for Modern C++"
+                            , "Niels Lohmann"                               , "https://github.com/nlohmann/json" },
+        { "Bambu Studio"
+                            , "bambulab"                                    , "https://bambulab.com/en/download/studio" },
+        { "Orca Slicer"
+                            , "SoftFever"                                   , "https://github.com/SoftFever/OrcaSlicer" },
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     };
 }
 

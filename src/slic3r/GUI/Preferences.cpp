@@ -15,7 +15,6 @@
 #include "format.hpp"
 #include "libslic3r/AppConfig.hpp"
 
-#include <wx/notebook.h>
 #include "Notebook.hpp"
 #include "ButtonsDescription.hpp"
 #include "OG_CustomCtrl.hpp"
@@ -23,9 +22,11 @@
 #include "ConfigWizard.hpp"
 #include "wxExtensions.hpp"
 
+#include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/path.hpp>
 
+<<<<<<< HEAD
 #include "Widgets/SpinInput.hpp"
 
 #include <boost/dll/runtime_symbol_info.hpp>
@@ -36,6 +37,11 @@
 #ifdef __linux__
 #include "DesktopIntegrationDialog.hpp"
 #endif //__linux__
+=======
+#include <wx/display.h>
+#include <wx/notebook.h>
+#include <wx/scrolwin.h>
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
 namespace Slic3r {
 
@@ -71,7 +77,11 @@ namespace GUI {
 
 PreferencesDialog::PreferencesDialog(wxWindow* parent) :
     DPIDialog(parent, wxID_ANY, _L("Preferences"), wxDefaultPosition, 
+<<<<<<< HEAD
               wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER)
+=======
+              wxDefaultSize, wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER )
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 {
 #ifdef __WXOSX__
     isOSX = true;
@@ -161,12 +171,18 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
 
 	this->ShowModal();
 }
-
 static std::shared_ptr<ConfigOptionsGroup>create_options_tab(const wxString& title, wxBookCtrlBase* tabs)
 {
+<<<<<<< HEAD
 	wxPanel* tab = new wxPanel(tabs, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBK_LEFT | wxTAB_TRAVERSAL);
 
 	tabs->AddPage(tab, _(title));
+=======
+    //set inside a scrollable panel
+    wxScrolledWindow *tab = new wxScrolledWindow(tabs, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                                                 wxBK_LEFT | wxTAB_TRAVERSAL | wxVSCROLL);
+	tabs->AddPage(tab, title);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 	tab->SetFont(wxGetApp().normal_font());
 
 	auto scrolled = new wxScrolledWindow(tab);
@@ -179,6 +195,7 @@ static std::shared_ptr<ConfigOptionsGroup>create_options_tab(const wxString& tit
 	sizer->Add(scrolled, 1, wxEXPAND);
 	sizer->SetSizeHints(tab);
 	tab->SetSizer(sizer);
+    tab->SetScrollRate(0, 5);
 
 	std::shared_ptr<ConfigOptionsGroup> optgroup = std::make_shared<ConfigOptionsGroup>(scrolled);
 	optgroup->title_width = 40;
@@ -514,6 +531,13 @@ void PreferencesDialog::build()
         option = Option(def, "check_material_export");
         m_optgroups_general.back()->append_single_option_line(option);
 
+        def.label = L("Show ignored settings when loading a project or configuration");
+        def.type = coBool;
+        def.tooltip = L("When loading a configuration, if it's coming from an earlier, a future or from another software, show the ignored settings that deosn't suit this version. Uncheck to remove this anoying pop-up.");
+        def.set_default_value(new ConfigOptionBool{ app_config->has("show_unknown_setting") ? app_config->get("show_unknown_setting") == "1" : false });
+        option = Option(def, "show_unknown_setting");
+        m_optgroups_general.back()->append_single_option_line(option);
+
         activate_options_tab(m_optgroups_general.back(), 3);
         m_optgroups_general.emplace_back(create_options_group(_L("Dialogs"), tabs, 0));
 
@@ -664,6 +688,13 @@ void PreferencesDialog::build()
 	m_optgroup_camera->append_single_option_line(option);
 #endif // _WIN32 || __APPLE__
 
+	def.label = L("Compress png textures");
+	def.type = coBool;
+	def.tooltip = L("If your custom texture (in png format) is displayed black, then disable this option to remove the problematic optimisation.");
+	def.set_default_value(new ConfigOptionBool{ app_config->get("compress_png_texture") == "1" });
+	option = Option(def, "compress_png_texture");
+	m_optgroup_camera->append_single_option_line(option);
+
 	activate_options_tab(m_optgroup_camera);
 
 	// Add "GUI" tab
@@ -698,11 +729,22 @@ void PreferencesDialog::build()
 			  "If disabled, old UI will be used."),
 			app_config->get_bool("color_manipulation_panel"));
 
+<<<<<<< HEAD
 		append_bool_option(m_optgroups_gui.back(), "order_volumes",
 			L("Order object volumes by types"),
 			L("If enabled, volumes will be always ordered inside the object. Correct order is Model Part, Negative Volume, Modifier, Support Blocker and Support Enforcer. "
 			  "If disabled, you can reorder Model Parts, Negative Volumes and Modifiers. But one of the model parts have to be on the first place."),
 			app_config->get_bool("order_volumes"));
+=======
+		def.label = L("Suppress to open hyperlink in browser");
+		def.type = coBool;
+		def.tooltip = (boost::format(_u8L("If enabled, %1% will not open hyperlinks in your browser.")) % SLIC3R_APP_NAME).str();
+		//def.tooltip = ("If enabled, the descriptions of configuration parameters in settings tabs wouldn't work as hyperlinks. "
+		//	"If disabled, the descriptions of configuration parameters in settings tabs will work as hyperlinks.");
+		def.set_default_value(new ConfigOptionBool{ app_config->get("suppress_hyperlinks") == "1" });
+		option = Option(def, "suppress_hyperlinks");
+		m_optgroups_gui.back()->append_single_option_line(option);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
 		def.label = L("Focusing platter on mouse over");
 		def.type = coBool;
@@ -814,19 +856,39 @@ void PreferencesDialog::build()
 
 		def.label = L("Show layer height on the scroll bar");
 		def.type = coBool;
-		def.tooltip = L("Add the layer height (first number in parentheses) next to a widget of the layer double-scrollbar.");
+		def.tooltip = L("Add the layer height (first number after the layer z position) next to a widget of the layer double-scrollbar.");
 		def.set_default_value(new ConfigOptionBool{ app_config->get("show_layer_height_doubleslider") == "1" });
 		option = Option(def, "show_layer_height_doubleslider");
 		m_optgroups_gui.back()->append_single_option_line(option);
 
 		def.label = L("Show layer time on the scroll bar");
 		def.type = coBool;
-		def.tooltip = L("Add the layer height (before the layer count in parentheses) next to a widget of the layer double-scrollbar.");
+		def.tooltip = L("Add the layer time (after the layer height, or if it's hidden after the layer z position) next to a widget of the layer double-scrollbar.");
 		def.set_default_value(new ConfigOptionBool{ app_config->get("show_layer_time_doubleslider") == "1" });
 		option = Option(def, "show_layer_time_doubleslider");
 		m_optgroups_gui.back()->append_single_option_line(option);
-	}
 
+		def.label = L("Show layer area on the scroll bar");
+		def.type = coBool;
+		def.tooltip = L("Add the layer area (the number just below the layer id) next to a widget of the layer double-scrollbar.");
+		def.set_default_value(new ConfigOptionBool{ app_config->get("show_layer_area_doubleslider") == "1" });
+		option = Option(def, "show_layer_area_doubleslider");
+		m_optgroups_gui.back()->append_single_option_line(option);
+	}
+	
+
+	def.label = L("Decimals for gcode viewer colors");
+	def.type = coInt;
+	def.tooltip = L("On the gcode viewer window, how many decimals are used to separate colors?"
+					" It's used for height, width, volumetric rate, section. Default is 2.");
+	def.set_default_value(new ConfigOptionInt{ atoi(app_config->get("gcodeviewer_decimals").c_str()) });
+	option = Option(def, "gcodeviewer_decimals");
+	option.opt.min = 0;
+	option.opt.max = 5;
+	option.opt.width = 6;
+	m_optgroups_gui.back()->append_single_option_line(option);
+	// as it's quite hard to detect a change and then clean & reload the gcode data... then asking for relaod is easier.
+	m_values_need_restart.push_back("gcodeviewer_decimals");
 
 
 	activate_options_tab(m_optgroups_gui.back(), 3);
@@ -835,7 +897,12 @@ void PreferencesDialog::build()
 	if (is_editor) {
 		// set Field for notify_release to its value to activate the object
 		boost::any val = s_keys_map_NotifyReleaseMode.at(app_config->get("notify_release"));
+<<<<<<< HEAD
 		m_optgroups_gui.back()->get_field("notify_release")->set_value(val, false);
+=======
+        m_optgroups_gui.back()->get_field("notify_release")->set_any_value(val, false);
+	}
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
 	//create layout options
 	create_settings_mode_widget(tabs->GetPage(2));
@@ -904,7 +971,7 @@ void PreferencesDialog::build()
 
     def.label = L("Restore window position on start");
     def.type = coBool;
-    def.tooltip = L("If enabled, PrusaSlicer will be open at the position it was closed");
+    def.tooltip = (boost::format(_u8L("If enabled, %1% will be open at the position it was closed")) % SLIC3R_APP_NAME).str();
     def.set_default_value(new ConfigOptionBool{ app_config->get("restore_win_position") == "1" });
     option = Option(def, "restore_win_position");
     m_optgroups_gui.back()->append_single_option_line(option);
@@ -1078,6 +1145,7 @@ void PreferencesDialog::build()
 
 	SetSizer(sizer);
 	sizer->SetSizeHints(this);
+    this->layout();
 	this->CenterOnParent();
 }
 
@@ -1172,7 +1240,7 @@ void PreferencesDialog::accept(wxEvent&)
 		m_seq_top_layer_only_changed = app_config->get("seq_top_layer_only") != it->second;
 
 	m_settings_layout_changed = false;
-	for (const std::string& key : { "old_settings_layout_mode",
+	for (const std::string key : { "old_settings_layout_mode",
 								    "new_settings_layout_mode",
 								    "dlg_settings_layout_mode" })
 	{
@@ -1183,6 +1251,22 @@ void PreferencesDialog::accept(wxEvent&)
 		}
 	}
 
+<<<<<<< HEAD
+=======
+	for (const std::string key : {	"default_action_on_close_application", 
+									"default_action_on_select_preset", 
+									"default_action_on_new_project" }) {
+	    auto it = m_values.find(key);
+		if (it != m_values.end() && it->second != "none" && app_config->get(key) != "none")
+			m_values.erase(it); // we shouldn't change value, if some of those parameters were selected, and then deselected
+	}
+	{
+	    auto it = m_values.find("default_action_on_dirty_project");
+		if (it != m_values.end() && !it->second.empty() && !app_config->get("default_action_on_dirty_project").empty())
+			m_values.erase(it); // we shouldn't change value, if this parameter was selected, and then deselected
+	}
+
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 #if 0 //#ifdef _WIN32 // #ysDarkMSW - Allow it when we deside to support the sustem colors for application
 	if (m_values.find("always_dark_color_mode") != m_values.end())
 		wxGetApp().force_sys_colors_update();
@@ -1327,10 +1411,41 @@ void PreferencesDialog::on_sys_color_changed()
 
 void PreferencesDialog::layout()
 {
-    const int em = em_unit();
-
+    const int em        = em_unit();
     SetMinSize(wxSize(47 * em, 28 * em));
-    Fit();
+
+    // Fit(); is SetSize(GetBestSize) but GetBestSize doesn't work for scroll pane. we need GetBestVirtualSize over all scroll panes
+    wxSize best_size = this->GetBestSize();
+    // Get ScrollPanels for each tab
+    assert(!this->GetChildren().empty());
+    assert(!this->GetChildren().front()->GetChildren().empty());
+    if(this->GetChildren().empty() || this->GetChildren().front()->GetChildren().empty()) return;
+    std::vector<wxPanel*> panels;
+    for (auto c : this->GetChildren().front()->GetChildren()) {
+        if (wxPanel *panel = dynamic_cast<wxPanel *>(c); panel)
+            panels.push_back(panel);
+    }
+
+    if (!panels.empty()) {
+        // get a size where all tabs fit into
+        wxSize biggest_virtual_size = panels.front()->GetBestVirtualSize();
+        for (wxPanel *tab : panels) {
+            wxSize current_size    = tab->GetBestVirtualSize();
+            biggest_virtual_size.x = std::max(biggest_virtual_size.x, current_size.x);
+            biggest_virtual_size.y = std::max(biggest_virtual_size.y, current_size.y);
+        }
+        best_size = biggest_virtual_size;
+        //best_size += tab_inset;
+    }
+    // add space for buttons and insets of the main panel 
+    best_size += wxSize(3 * em, 12 * em);
+    // also reduce size to fit in screen if needed
+    wxDisplay display(wxDisplay::GetFromWindow(this));
+    wxRect    screen = display.GetClientArea();
+    best_size.x      = std::min(best_size.x, screen.width);
+    best_size.y      = std::min(best_size.y, screen.height);
+    // apply
+    SetSize(best_size);
 
     Refresh();
 }

@@ -22,7 +22,7 @@ namespace Slic3r {
 static const std::string EXTRUSION_ROLE_TAG = ";_EXTRUSION_ROLE:";
 static const std::string EXTRUDE_END_TAG = ";_EXTRUDE_END";
 static const std::string EXTRUDE_SET_SPEED_TAG = ";_EXTRUDE_SET_SPEED";
-static const std::string EXTERNAL_PERIMETER_TAG = ";_EXTERNAL_PERIMETER";
+//static const std::string EXTERNAL_PERIMETER_TAG = ";_EXTERNAL_PERIMETER";
 
 // Maximum segment length to split a long segment if the initial and the final flow rate differ.
 // Smaller value means a smoother transition between two different flow rates.
@@ -49,9 +49,14 @@ PressureEqualizer::PressureEqualizer(const Slic3r::GCodeConfig &config) : m_use_
 
     // Calculate filamet crossections for the multiple extruders.
     m_filament_crossections.clear();
-    for (double r : config.filament_diameter.values) {
+    for (double r : config.filament_diameter.get_values()) {
         double a = 0.25f*M_PI*r*r;
         m_filament_crossections.push_back(float(a));
+    }
+
+    m_extruder_names.clear();
+    for (const std::string & str: config.tool_name.get_values()) {
+        m_extruder_names.push_back(str);
     }
 
     // Volumetric rate of a 0.45mm x 0.2mm extrusion at 60mm/s XY movement: 0.45*0.2*60*60=5.4*60 = 324 mm^3/min
@@ -372,10 +377,18 @@ bool PressureEqualizer::process_line(const char *line, const char *line_end, GCo
         eatws(line);
         // Ignore the rest of the M-codes.
         break;
+<<<<<<< HEAD
+=======
+        }
+    case 'A': {
+        parse_activate_extruder(str_line);
+        break;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     }
     case 'T':
     {
         // Activate an extruder head.
+<<<<<<< HEAD
         int new_extruder = -1;
         try {
             new_extruder = parse_int(line);
@@ -392,6 +405,21 @@ bool PressureEqualizer::process_line(const char *line, const char *line_end, GCo
             buf.type = GCODELINETYPE_TOOL_CHANGE;
         } else {
             buf.type = GCODELINETYPE_NOOP;
+=======
+        try {
+            int new_extruder = parse_int(line);
+            if (new_extruder != int(m_current_extruder)) {
+                m_current_extruder = new_extruder;
+                //m_retracted = true; // why?
+                buf.type = GCODELINETYPE_TOOL_CHANGE;
+            } else {
+                buf.type = GCODELINETYPE_NOOP;
+            }
+        } catch (Slic3r::InvalidArgument &) {
+            // Ignore invalid GCodes.
+            eatws(line);
+            break;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
         }
         break;
     }
@@ -405,6 +433,47 @@ bool PressureEqualizer::process_line(const char *line, const char *line_end, GCo
     ++line_idx;
 #endif
     return true;
+}
+
+void PressureEqualizer::parse_activate_extruder(const std::string &line_str)
+{
+    if (size_t cmd_end = line_str.find("CTIVATE_EXTRUDER"); cmd_end != std::string::npos) {
+        bool   error              = false;
+        size_t extruder_pos_start = line_str.find("EXTRUDER", cmd_end + std::string_view("CTIVATE_EXTRUDER").size()) +
+                                    std::string_view("EXTRUDER").size();
+        assert(line_str[extruder_pos_start - 1] == 'R');
+        if (extruder_pos_start != std::string::npos) {
+            // remove next char until '-' or [0-9]
+            while (extruder_pos_start < line_str.size() &&
+                   (line_str[extruder_pos_start] == ' ' || line_str[extruder_pos_start] == '=' ||
+                    line_str[extruder_pos_start] == '\t'))
+                ++extruder_pos_start;
+            size_t extruder_pos_end = extruder_pos_start + 1;
+            while (extruder_pos_end < line_str.size() && line_str[extruder_pos_end] != ' ' &&
+                   line_str[extruder_pos_end] != '\t' && line_str[extruder_pos_end] != '\r' &&
+                   line_str[extruder_pos_end] != '\n')
+                ++extruder_pos_end;
+            std::string extruder_name = line_str.substr(extruder_pos_start, extruder_pos_end - extruder_pos_start);
+            // we have a "name". It may be whatever or "extruder" + X
+            for (size_t extruder_idx = 0; extruder_idx < m_extruder_names.size(); ++extruder_idx) {
+                if (m_extruder_names[extruder_idx] == extruder_name) {
+                    m_current_extruder = extruder_idx;
+                return;
+                }
+            }
+            std::string extruder_str("extruder");
+            if (extruder_str == extruder_name) {
+                m_current_extruder = 0;
+                return;
+            }
+            for (size_t extruder_idx = 0; extruder_idx < m_extruder_names.size(); ++extruder_idx) {
+                if (extruder_str + std::to_string(extruder_idx) == extruder_name) {
+                    m_current_extruder = extruder_idx;
+                return;
+                }
+            }
+        }
+    }
 }
 
 void PressureEqualizer::output_gcode_line(const size_t line_idx)
@@ -713,7 +782,11 @@ inline bool is_just_line_with_extrude_set_speed_tag(const std::string &line)
             break;
         else
             return false;
+<<<<<<< HEAD
     }
+=======
+    } 
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     parse_float(p_line, line_end - p_line);
     eatws(p_line);
     p_line += EXTRUDE_SET_SPEED_TAG.length();
@@ -728,16 +801,24 @@ void PressureEqualizer::push_line_to_output(const size_t line_idx, const float n
                                                       output_buffer.begin() + int(this->output_buffer_length) + 1);
         if (is_just_line_with_extrude_set_speed_tag(prev_line_str))
             this->output_buffer_length = this->output_buffer_prev_length; // Remove the last line because it only sets the speed for an empty block of g-code lines, so it is useless.
-        else
-            push_to_output(EXTRUDE_END_TAG.data(), EXTRUDE_END_TAG.length(), true);
-    } else
-        push_to_output(EXTRUDE_END_TAG.data(), EXTRUDE_END_TAG.length(), true);
+        //else
+            //push_to_output(EXTRUDE_END_TAG.data(), EXTRUDE_END_TAG.length(), true); // you don't need to extrude_end a EXTRUDE_SET_SPEED_TAG anymore, only for _EXTRUDETYPE_
+    } else {
+        std::cout<<"\n";
+    }
+    //else push_to_output(EXTRUDE_END_TAG.data(), EXTRUDE_END_TAG.length(), true); // you don't need to extrude_end a EXTRUDE_SET_SPEED_TAG anymore, only for _EXTRUDETYPE_
 
     GCodeG1Formatter feedrate_formatter(m_gcode_precision_xyz, m_gcode_precision_e);
     feedrate_formatter.emit_f(new_feedrate);
     feedrate_formatter.emit_string(std::string(EXTRUDE_SET_SPEED_TAG.data(), EXTRUDE_SET_SPEED_TAG.length()));
+<<<<<<< HEAD
     if (line.extrusion_role == GCodeExtrusionRole::ExternalPerimeter)
         feedrate_formatter.emit_string(std::string(EXTERNAL_PERIMETER_TAG.data(), EXTERNAL_PERIMETER_TAG.length()));
+=======
+    //you don't need to re-emit that. and now it's _EXTRUDETYPE_{code} anyway
+    //if (line.extrusion_role == erExternalPerimeter)
+    //    feedrate_formatter.emit_string(std::string(EXTERNAL_PERIMETER_TAG.data(), EXTERNAL_PERIMETER_TAG.length()));
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     push_to_output(feedrate_formatter);
 
     GCodeG1Formatter extrusion_formatter(m_gcode_precision_xyz, m_gcode_precision_e);

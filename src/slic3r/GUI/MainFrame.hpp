@@ -198,9 +198,9 @@ public:
     void        update_menubar();
     // Open item in menu by menu and item name (in actual language)
     void        open_menubar_item(const wxString& menu_name,const wxString& item_name);
-#ifdef _WIN32
+
     void        show_tabs_menu(bool show);
-#endif
+
     void        update_ui_from_settings();
     bool        is_loaded() const { return m_loaded; }
     bool        is_last_input_file() const  { return !m_qs_last_input_file.IsEmpty(); }
@@ -225,7 +225,7 @@ public:
     ETabType    next_preview_tab();
     void        select_view(const std::string& direction);
     // Propagate changed configuration from the Tab to the Plater and save changes to the AppConfig
-    void        on_config_changed(DynamicPrintConfig* cfg) const ;
+    void        on_config_changed(const DynamicConfig &cfg) const ;
 
     bool can_save() const;
     bool can_save_as() const;

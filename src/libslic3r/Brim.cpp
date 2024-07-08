@@ -1272,7 +1272,7 @@ void make_brim_ears(const Print& print, const Flow& flow, const PrintObjectPtrs&
 
         //push into extrusions
         extrusion_entities_append_paths(
-            out.set_entities(),
+            out,
             lines_sorted,
             ExtrusionAttributes{ExtrusionRole::Skirt,
                                 {float(flow.mm3_per_mm()), float(flow.width()),

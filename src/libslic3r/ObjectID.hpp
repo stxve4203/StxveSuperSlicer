@@ -82,7 +82,7 @@ protected:
     // Override this method if a ObjectBase derived class owns other ObjectBase derived instances.
     virtual void assign_new_unique_ids_recursive() { this->set_new_unique_id(); }
 
-private:
+//private:
     ObjectID                m_id;
 
 	static inline ObjectID  generate_new_id() { return ObjectID(++ s_last_id); }
@@ -135,6 +135,11 @@ private:
 	template<class Archive> void serialize(Archive &ar) { ar(m_timestamp); }
 };
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 class CutObjectBase : public ObjectBase
 {
     // check sum of CutParts in initial Object

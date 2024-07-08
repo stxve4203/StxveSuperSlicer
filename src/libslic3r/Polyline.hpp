@@ -101,8 +101,8 @@ public:
     using const_iterator = Points::const_iterator;
 };
 
-inline bool operator==(const Polyline &lhs, const Polyline &rhs) { return lhs.points == rhs.points; }
-inline bool operator!=(const Polyline &lhs, const Polyline &rhs) { return lhs.points != rhs.points; }
+//inline bool operator==(const Polyline &lhs, const Polyline &rhs) { return lhs.points == rhs.points; }
+//inline bool operator!=(const Polyline &lhs, const Polyline &rhs) { return lhs.points != rhs.points; }
 
 extern BoundingBox get_extents(const Polyline& polyline);
 extern BoundingBox get_extents(const Polylines& polylines);
@@ -478,7 +478,7 @@ public:
     int  find_point(const Point& point) const { return Polyline::find_point(point); }
     int  find_point(const Point& point, const double scaled_epsilon) const { return Polyline::find_point(point, scaled_epsilon); }
     int  closest_point_index(const Point& point) const { return Polyline::closest_point_index(point); }
-    Point point_projection(const Point& point) const { return Polyline::point_projection(point); }
+    std::pair<Point, size_t> point_projection(const Point& point) const { return Polyline::point_projection(point); }
 
     virtual void reverse() override;
 

@@ -358,11 +358,19 @@ public:
 
     Layer              *upper_layer;
     Layer              *lower_layer;
+<<<<<<< HEAD
 //    bool                slicing_errors;
     coordf_t            slice_z;       // Z used for slicing in unscaled coordinates
     coordf_t            print_z;       // Z used for printing in unscaled coordinates
     coordf_t            height;        // layer height in unscaled coordinates
     coordf_t            bottom_z() const { return this->print_z - this->height; }
+=======
+    bool                slicing_errors;
+    double              slice_z;       // Z used for slicing in unscaled coordinates
+    double              print_z;       // Z used for printing in unscaled coordinates
+    double              height;        // layer height in unscaled coordinates
+    double              bottom_z() const { return this->print_z - this->height; }
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
     //Extrusions estimated to be seriously malformed, estimated during "Estimating curled extrusions" step. These lines should be avoided during fast travels.
     CurledLines         curled_lines;

@@ -176,6 +176,7 @@ bool Polygon::intersection(const Line &line, Point *intersection) const
     return false;
 }
 
+<<<<<<< HEAD
 bool Polygon::first_intersection(const Line& line, Point* intersection) const
 {
     if (this->points.size() < 2)
@@ -244,6 +245,44 @@ Points filter_points_by_vectors(const Points &poly, FilterFn filter)
         v1 = v2;
         p1 = p2;
     }
+=======
+std::vector<size_t> Polygon::concave_points_idx(double angle) const
+{
+    std::vector<size_t> points_idx;
+    angle = 2. * PI - angle + EPSILON;
+
+    // check whether first point forms a concave angle
+    if (this->points.front().ccw_angle(this->points.back(), *(this->points.begin() + 1)) <= angle)
+        points_idx.push_back(0);
+
+    // check whether points 1..(n-1) form concave angles
+    for (size_t idx = 1; idx != this->points.size() - 1; ++idx)
+        if (points[idx].ccw_angle(points[idx - 1], points[idx + 1]) <= angle)
+            points_idx.push_back(idx);
+
+    // check whether last point forms a concave angle
+    if (this->points.back().ccw_angle(*(this->points.end() - 2), this->points.front()) <= angle)
+        points_idx.push_back(this->points.size() - 1);
+
+    return points_idx;
+}
+
+// find all convex vertices (i.e. having an internal angle smaller than the supplied angle)
+// (external = right side, thus we consider ccw orientation)
+Points Polygon::convex_points(double angle) const
+{
+    Points points;
+    angle = 2 * PI - angle - EPSILON;
+    
+    // check whether first point forms a convex angle
+    if (this->points.front().ccw_angle(this->points.back(), *(this->points.begin()+1)) >= angle)
+        points.push_back(this->points.front());
+    
+    // check whether points 1..(n-1) form convex angles
+    for (Points::const_iterator p = this->points.begin() + 1; p != this->points.end() - 1; ++p)
+        if (p->ccw_angle(*(p - 1), *(p + 1)) >= angle)
+            points.push_back(*p);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     
     return out;
 }
@@ -274,9 +313,32 @@ Points Polygon::concave_points(double angle_threshold) const
     return filter_convex_concave_points_by_angle_threshold(this->points, angle_threshold, [](const Vec2d &v1, const Vec2d &v2){ return cross2(v1, v2) < 0.; });
 }
 
-// Projection of a point onto the polygon.
-Point Polygon::point_projection(const Point &point) const
+
+std::vector<size_t> Polygon::convex_points_idx(double angle) const
 {
+    std::vector<size_t> points_idx;
+    angle = 2. * PI - angle - EPSILON;
+
+    // check whether first point forms a convex angle
+    if (this->points.front().ccw_angle(this->points.back(), *(this->points.begin() + 1)) >= angle)
+        points_idx.push_back(0);
+
+    // check whether points 1..(n-1) form convex angles
+    for (size_t idx = 1; idx != this->points.size() - 1; ++idx)
+        if (points[idx].ccw_angle(points[idx - 1], points[idx + 1]) >= angle)
+            points_idx.push_back(idx);
+
+    // check whether last point forms a convex angle
+    if (this->points.back().ccw_angle(*(this->points.end() - 2), this->points.front()) >= angle)
+        points_idx.push_back(this->points.size() - 1);
+
+    return points_idx;
+}
+
+// Projection of a point onto the polygon.
+std::pair<Point, size_t> Polygon::point_projection(const Point &point) const
+{
+    size_t pt_idx = size_t(-1);
     Point proj = point;
     double dmin = std::numeric_limits<double>::max();
     if (! this->points.empty()) {
@@ -287,11 +349,13 @@ Point Polygon::point_projection(const Point &point) const
             if (d < dmin) {
                 dmin = d;
                 proj = pt0;
+                pt_idx = i;
             }
             d = (point - pt1).cast<double>().norm();
             if (d < dmin) {
                 dmin = d;
                 proj = pt1;
+                pt_idx = (i + 1 == this->points.size()) ? 0 : i + 1;
             }
             Vec2d v1(coordf_t(pt1(0) - pt0(0)), coordf_t(pt1(1) - pt0(1)));
             coordf_t div = v1.squaredNorm();
@@ -304,12 +368,13 @@ Point Polygon::point_projection(const Point &point) const
                     if (d < dmin) {
                         dmin = d;
                         proj = foot;
+                        pt_idx = i;
                     }
                 }
             }
         }
     }
-    return proj;
+    return {proj, pt_idx};
 }
 
 std::vector<float> Polygon::parameter_by_length() const

@@ -37,12 +37,21 @@ Mill::Mill(uint16_t mill_id, GCodeConfig &config) :
     Tool(mill_id, config)
 {
     m_mill_id = mill_id;
+<<<<<<< HEAD
     m_id = mill_id + (uint16_t)config.retract_length.values.size();
+=======
+    m_id = mill_id + (uint16_t)config->retract_length.size();
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 }
 
 std::pair<double, double> Tool::extrude(double dE)
 {
+<<<<<<< HEAD
     assert(! std::isnan(dE));
+=======
+    assert(dE < std::numeric_limits<int32_t>::max());
+    assert(dE > -std::numeric_limits<int32_t>::max());
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     // in case of relative E distances we always reset to 0 before any output
     if (m_config->use_relative_e_distances)
         m_E = 0.;
@@ -62,10 +71,21 @@ std::pair<double, double> Tool::extrude(double dE)
    The restart_extra argument sets the extra length to be used for
    unretraction. If we're actually performing a retraction, any restart_extra
    value supplied will overwrite the previous one if any. */
+<<<<<<< HEAD
 std::pair<double, double> Tool::retract(double length, double restart_extra, double restart_extra_toolchange)
 {
     assert(! std::isnan(retract_length()));
     assert(! std::isnan(restart_extra) && restart_extra >= 0);
+=======
+double Tool::retract(double length, std::optional<double> restart_extra, std::optional<double> restart_extra_toolchange)
+{
+    assert(length < std::numeric_limits<int32_t>::max());
+    //assert(length > 0); // it's possible, as you may want to "reset the extruder but do not use restart_extra yet.
+    assert(!restart_extra || *restart_extra < std::numeric_limits<int32_t>::max());
+    assert(!restart_extra || *restart_extra > -std::numeric_limits<int32_t>::max());
+    assert(!restart_extra_toolchange || *restart_extra_toolchange < std::numeric_limits<int32_t>::max());
+    assert(!restart_extra_toolchange || *restart_extra_toolchange > -std::numeric_limits<int32_t>::max());
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     // in case of relative E distances we always reset to 0 before any output
     if (m_config->use_relative_e_distances)
         m_E = 0.;
@@ -75,12 +95,18 @@ std::pair<double, double> Tool::retract(double length, double restart_extra, dou
         m_E             -= to_retract;
         m_absolute_E    -= to_retract;
         m_retracted     += to_retract;
-        if(!std::isnan(restart_extra))
-            m_restart_extra = restart_extra;
+        if(restart_extra)
+            m_restart_extra = *restart_extra;
     }
+<<<<<<< HEAD
     if (!std::isnan(restart_extra_toolchange))
         m_restart_extra_toolchange = restart_extra_toolchange;
     return std::make_pair(to_retract, m_E);
+=======
+    if (restart_extra_toolchange)
+        m_restart_extra_toolchange = *restart_extra_toolchange;
+    return to_retract;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 }
 double Tool::retract_to_go(double retract_length) const { return std::max(0., m_formatter.quantize_e(retract_length - m_retracted)); }
 
@@ -240,11 +266,19 @@ double Extruder::retract_before_wipe() const
 
 double Extruder::retract_length() const
 {
+    assert(!m_config->retract_length.is_nil());
+    assert(m_config->retract_length.get_at(m_id) < std::numeric_limits<int32_t>::max());
+    assert(m_config->retract_length.get_at(m_id) > -std::numeric_limits<int32_t>::max());
+    assert(m_config->retract_length.size() > m_id);
     return m_config->retract_length.get_at(m_id);
 }
 
 double Extruder::retract_lift() const
 {
+    assert(!m_config->retract_lift.is_nil());
+    assert(m_config->retract_lift.get_at(m_id) < std::numeric_limits<int32_t>::max());
+    assert(m_config->retract_lift.get_at(m_id) > -std::numeric_limits<int32_t>::max());
+    assert(m_config->retract_lift.size() > m_id);
     return m_config->retract_lift.get_at(m_id);
 }
 
@@ -261,6 +295,10 @@ int Extruder::deretract_speed() const
 
 double Extruder::retract_restart_extra() const
 {
+    assert(!m_config->retract_restart_extra.is_nil());
+    assert(m_config->retract_restart_extra.get_at(m_id) < std::numeric_limits<int32_t>::max());
+    assert(m_config->retract_restart_extra.get_at(m_id) > -std::numeric_limits<int32_t>::max());
+    assert(m_config->retract_restart_extra.size() > m_id);
     return m_config->retract_restart_extra.get_at(m_id);
 }
 
@@ -271,6 +309,10 @@ double Extruder::retract_length_toolchange() const
 
 double Extruder::retract_restart_extra_toolchange() const
 {
+    assert(!m_config->retract_restart_extra_toolchange.is_nil());
+    assert(m_config->retract_restart_extra_toolchange.get_at(m_id) < std::numeric_limits<int32_t>::max());
+    assert(m_config->retract_restart_extra_toolchange.get_at(m_id) > -std::numeric_limits<int32_t>::max());
+    assert(m_config->retract_restart_extra_toolchange.size() > m_id);
     return m_config->retract_restart_extra_toolchange.get_at(m_id);
 }
 

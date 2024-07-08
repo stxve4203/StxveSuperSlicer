@@ -141,7 +141,6 @@ private:
     wxColour        m_color_label_default;
     wxColour        m_color_label_phony;
     wxColour        m_color_window_default;
-#ifdef _WIN32
     wxColour        m_color_highlight_label_default;
     wxColour        m_color_hovered_btn_label;
     wxColour        m_color_hovered_btn;
@@ -149,8 +148,11 @@ private:
     wxColour        m_color_highlight_default;
     wxColour        m_color_selected_btn_bg;
     bool            m_force_colors_update { false };
+<<<<<<< HEAD
 #endif
     std::vector<std::string>     m_mode_palette;
+=======
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
     wxFont		    m_small_font;
     wxFont		    m_bold_font;
@@ -187,7 +189,6 @@ public:
     bool            initialized() const { return m_initialized; }
 
     explicit GUI_App(EAppMode mode = EAppMode::Editor);
-    ~GUI_App() override;
 
     EAppMode get_app_mode() const { return m_app_mode; }
     bool is_editor() const { return m_app_mode == EAppMode::Editor; }
@@ -239,6 +240,7 @@ public:
     const wxColour& get_label_clr_phony()   { return m_color_label_phony; }
     const wxColour& get_window_default_clr(){ return m_color_window_default; }
 
+<<<<<<< HEAD
     const std::string       get_html_bg_color(wxWindow* html_parent);
 
     const std::string&      get_first_mode_btn_color(int mode_id);
@@ -247,6 +249,8 @@ public:
     void                    set_mode_palette(const std::vector<wxColour> &palette);
 
 #ifdef _WIN32
+=======
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     const wxColour& get_label_highlight_clr()   { return m_color_highlight_label_default; }
     const wxColour& get_highlight_default_clr() { return m_color_highlight_default; }
     const wxColour& get_color_hovered_btn_label() { return m_color_hovered_btn_label; }
@@ -256,7 +260,6 @@ public:
 #ifdef _MSW_DARK_MODE
     void            force_menu_update();
 #endif //_MSW_DARK_MODE
-#endif
 
     const wxFont&   small_font()            { return m_small_font; }
     const wxFont&   bold_font()             { return m_bold_font; }
@@ -284,6 +287,7 @@ public:
     void            over_bridge_dialog();
     void            calibration_cube_dialog();
 	void            calibration_retraction_dialog();
+    void            calibration_pressureadv_dialog();
     void            freecad_script_dialog();
     void            tiled_canvas_dialog();
     //void            support_tuning(); //have to do multiple, in a submenu
@@ -300,7 +304,7 @@ public:
     bool            switch_language();
     bool            load_language(wxString language, bool initial);
 
-    Tab*            get_tab(Preset::Type type);
+    Tab*            get_tab(Preset::Type type, bool only_completed = true);
     ConfigOptionMode get_mode();
     bool            save_mode(const ConfigOptionMode mode) ;
     void            update_mode();
@@ -353,15 +357,15 @@ public:
     // Parameters extracted from the command line to be passed to GUI after initialization.
     GUI_InitParams* init_params { nullptr };
 
-    AppConfig*      app_config{ nullptr };
-    PresetBundle*   preset_bundle{ nullptr };
-    PresetUpdater*  preset_updater{ nullptr };
+    std::unique_ptr<AppConfig> app_config;
+    std::unique_ptr<PresetBundle> preset_bundle;
+    std::unique_ptr<PresetUpdater> preset_updater;
     MainFrame*      mainframe{ nullptr };
     Plater*         plater_{ nullptr };
     std::mutex      not_modal_dialog_mutex;
     wxDialog*       not_modal_dialog = nullptr;
 
-	PresetUpdater*  get_preset_updater() { return preset_updater; }
+	PresetUpdater*  get_preset_updater() { return preset_updater.get(); }
 
     wxBookCtrlBase* tab_panel() const ;
     int             extruders_cnt() const;

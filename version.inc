@@ -10,10 +10,17 @@ set(SLIC3R_APP_CMD "Slic3r.1")
 # id for windows registry
 set(SLIC3R_APP_PROG_ID "Slic3r")
 # versions
+<<<<<<< HEAD
 set(SLIC3R_VERSION "2.7-rc2")
 set(SLIC3R_VERSION_FULL "2.7.60.0")
 set(SLIC3R_BUILD_ID "${SLIC3R_APP_KEY}_${SLIC3R_VERSION_FULL}+UNKNOWN")
 set(SLIC3R_RC_VERSION "2,7,60,0")
+=======
+set(SLIC3R_VERSION "2.5")
+set(SLIC3R_VERSION_FULL "2.5.60.0")
+set(SLIC3R_BUILD_ID "${SLIC3R_APP_KEY}_${SLIC3R_VERSION_FULL}+UNKNOWN")
+set(SLIC3R_RC_VERSION "2,5,60,0")
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 set(SLIC3R_RC_VERSION_DOTS "${SLIC3R_VERSION_FULL}")
 
 # Same as the slicer name but for gcodeviewer

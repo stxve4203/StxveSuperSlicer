@@ -68,7 +68,78 @@ public:
     std::string post_toolchange(GCodeGenerator &gcodegen);
     
 private:
+<<<<<<< HEAD
     int _get_temp(const GCodeGenerator &gcodegen) const;
+=======
+    int _get_temp(GCode &gcodegen);
+};
+
+class Wipe {
+public:
+    bool enable;
+    Polyline path;
+
+    void append(const Point &p);
+    void append(const Polyline &p);
+    void set(const Polyline &p);
+    void reverse() { path.reverse(); }
+    void clip_start(coord_t dist) { path.clip_start(dist); }
+    void translate(const Point &trsl) { path.translate(trsl); }
+
+    Wipe() : enable(false) {}
+    bool has_path() const { return !this->path.points.empty(); }
+    void reset_path() { this->path = Polyline(); }
+    std::string wipe(GCode &gcodegen, bool toolchange = false);
+};
+
+class WipeTowerIntegration {
+public:
+    WipeTowerIntegration(
+        const PrintConfig                                           &print_config,
+        const std::vector<WipeTower::ToolChangeResult>              &priming,
+        const std::vector<std::vector<WipeTower::ToolChangeResult>> &tool_changes,
+        const WipeTower::ToolChangeResult                           &final_purge) :
+        m_left(/*float(print_config.wipe_tower_x.value)*/ 0.f),
+        m_right(float(/*print_config.wipe_tower_x.value +*/ print_config.wipe_tower_width.value)),
+        m_wipe_tower_pos(float(print_config.wipe_tower_x.value), float(print_config.wipe_tower_y.value)),
+        m_wipe_tower_rotation(float(print_config.wipe_tower_rotation_angle)),
+        m_extruder_offsets(print_config.extruder_offset.get_values()),
+        m_priming(priming),
+        m_tool_changes(tool_changes),
+        m_final_purge(final_purge),
+        m_layer_idx(-1),
+        m_tool_change_idx(0)
+    {}
+
+    std::string prime(GCode &gcodegen);
+    void next_layer() { ++ m_layer_idx; m_tool_change_idx = 0; }
+    std::string tool_change(GCode &gcodegen, int extruder_id, bool finish_layer);
+    std::string finalize(GCode &gcodegen);
+    std::vector<float> used_filament_length() const;
+
+private:
+    WipeTowerIntegration& operator=(const WipeTowerIntegration&);
+    std::string append_tcr(GCode &gcodegen, const WipeTower::ToolChangeResult &tcr, int new_extruder_id, double z = -1.) const;
+
+    // Postprocesses gcode: rotates and moves G1 extrusions and returns result
+    std::string post_process_wipe_tower_moves(const WipeTower::ToolChangeResult& tcr, const Vec2f& translation, float angle) const;
+
+    // Left / right edges of the wipe tower, for the planning of wipe moves.
+    const float                                                  m_left;
+    const float                                                  m_right;
+    const Vec2f                                                  m_wipe_tower_pos;
+    const float                                                  m_wipe_tower_rotation;
+    const std::vector<Vec2d>                                     m_extruder_offsets;
+
+    // Reference to cached values at the Printer class.
+    const std::vector<WipeTower::ToolChangeResult>              &m_priming;
+    const std::vector<std::vector<WipeTower::ToolChangeResult>> &m_tool_changes;
+    const WipeTower::ToolChangeResult                           &m_final_purge;
+    // Current layer index.
+    int                                                          m_layer_idx;
+    int                                                          m_tool_change_idx;
+    double                                                       m_last_wipe_tower_print_z = 0.f;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 };
 
 class ColorPrintColors
@@ -265,10 +336,16 @@ public:
     bool            enable_cooling_markers() const { return m_enable_cooling_markers; }
 
     // For Perl bindings, to be used exclusively by unit tests.
+<<<<<<< HEAD
     unsigned int    layer_count() const { return m_layer_with_support_count; }
     unsigned int    object_layer_count() const { return m_layer_count; }
     //void            set_layer_count(unsigned int value) { m_layer_count = value; }
     void            apply_print_config(const PrintConfig &print_config);
+=======
+    unsigned int    layer_count() const { return m_layer_count; }
+    void            set_layer_count(unsigned int value) { m_layer_count = value; }
+    void            apply_print_configs(const Print &print);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
     // append full config to the given string
     static void append_full_config(const Print& print, std::string& str);
@@ -298,6 +375,7 @@ private:
         // It is being set to null inside process_layers(), because the find-replace process
         // is being called on a secondary thread to improve performance.
         void set_find_replace(GCodeFindReplace *find_replace, bool enabled) { m_find_replace_backup = find_replace; m_find_replace = enabled ? find_replace : nullptr; }
+        void set_only_ascii(bool only_ascii) { m_only_ascii = only_ascii; }
         void find_replace_enable() { m_find_replace = m_find_replace_backup; }
         void find_replace_supress() { m_find_replace = nullptr; }
 
@@ -323,13 +401,14 @@ private:
         FILE             *f { nullptr };
         // Find-replace post-processor to be called before GCodePostProcessor.
         GCodeFindReplace *m_find_replace { nullptr };
+        bool              m_only_ascii;
         // If suppressed, the backoup holds m_find_replace.
         GCodeFindReplace *m_find_replace_backup { nullptr };
         GCodeProcessor   &m_processor;
     };
     void            _do_export(Print &print, GCodeOutputStream &file, ThumbnailsGeneratorCallback thumbnail_cb);
-
-    void            _init_multiextruders(const Print& print, GCodeOutputStream& file, GCodeWriter& writer, const ToolOrdering& tool_ordering, const std::string& custom_gcode);
+    void            _move_to_print_object(std::string& gcode_out, const Print& print, size_t finished_objects, uint16_t initial_extruder_id);
+    void            _init_multiextruders(const Print& print, std::string& gcode_out, GCodeWriter& writer, const ToolOrdering& tool_ordering, const std::string& custom_gcode);
 
     static ObjectsLayerToPrint         		                     collect_layers_to_print(const PrintObject &object, Print::StatusMonitor &status_monitor);
     static std::vector<std::pair<coordf_t, ObjectsLayerToPrint>> collect_layers_to_print(const Print &print, Print::StatusMonitor &status_monitor);
@@ -351,12 +430,22 @@ private:
     // Generate G-code, run the filters (vase mode, cooling buffer), run the G-code analyser
     // and export G-code into file.
     void process_layers(
+<<<<<<< HEAD
         const Print                                                   &print,
         Print::StatusMonitor                                          &status_monitor,
         const ToolOrdering                                            &tool_ordering,
         const std::vector<const PrintInstance*>                       &print_object_instances_ordering,
         const std::vector<std::pair<coordf_t, ObjectsLayerToPrint>>   &layers_to_print,
         GCodeOutputStream                                             &output_stream);
+=======
+        const Print                                                         &print,
+        Print::StatusMonitor                                                &status_monitor,
+        const ToolOrdering                                                  &tool_ordering,
+        const std::vector<const PrintInstance*>                             &print_object_instances_ordering,
+        const std::vector<std::pair<coordf_t, std::vector<LayerToPrint>>>   &layers_to_print,
+        std::string                                                         &preamble,
+        GCodeOutputStream                                                   &output_stream);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     // Process all layers of a single object instance (sequential mode) with a parallel pipeline:
     // Generate G-code, run the filters (vase mode, cooling buffer), run the G-code analyser
     // and export G-code into file.
@@ -366,6 +455,7 @@ private:
         const ToolOrdering                      &tool_ordering,
         ObjectsLayerToPrint                      layers_to_print,
         const size_t                             single_object_idx,
+        std::string                             &preamble,
         GCodeOutputStream                       &output_stream);
 
     void            set_last_pos(const Point &pos) { m_last_pos = pos; m_last_pos_defined = true; }
@@ -424,6 +514,7 @@ private:
 		// For sequential print, the instance of the object to be printing has to be defined.
 		const size_t                     				 single_object_instance_idx);
 
+<<<<<<< HEAD
     struct ExtrudeArgs{
         // Index of the extruder currently active.
         uint16_t                  extruder_id;
@@ -469,6 +560,14 @@ private:
         // const bool needs_retraction,
         // bool& could_be_wipe_disabled
     // );
+=======
+    void            apply_region_config(std::string &gcode);
+    std::string     extrude_perimeters(const Print &print, const std::vector<ObjectByExtruder::Island::Region> &by_region);
+    std::string     extrude_infill(const Print& print, const std::vector<ObjectByExtruder::Island::Region>& by_region, bool is_infill_first);
+    std::string     extrude_ironing(const Print& print, const std::vector<ObjectByExtruder::Island::Region>& by_region);
+    std::string     extrude_support(const ExtrusionEntitiesPtr &support_fills);
+
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     Polyline        travel_to(std::string& gcode, const Point &point, ExtrusionRole role);
     void            write_travel_to(std::string& gcode, const Polyline& travel, std::string comment);
     bool            can_cross_perimeter(const Polyline& travel, bool offset);
@@ -542,7 +641,13 @@ private:
     // HACK to avoid multiple Z move.
     std::string                         m_delayed_layer_change;
     // Keeps track of the last extrusion role passed to the processor
+<<<<<<< HEAD
     GCodeExtrusionRole                  m_last_processor_extrusion_role;
+=======
+    ExtrusionRole                       m_last_processor_extrusion_role;
+    // For Progress bar indicator, in sequential mode (complete objects)
+    std::set<const PrintObject*>              m_object_sequentially_printed;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     // How many times will change_layer() be called?
     // change_layer() will update the progress bar.
     uint32_t                            m_layer_count;
@@ -614,7 +719,11 @@ private:
     std::string m_gcode_label_objects_start;
     std::string m_gcode_label_objects_end;
     void _add_object_change_labels(std::string &gcode);
+<<<<<<< HEAD
     void ensure_end_object_change_labels(std::string &gcode);
+=======
+    std::map<std::string, std::string> raw_str_to_objectid_str;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
     bool m_silent_time_estimator_enabled;
 
@@ -624,6 +733,7 @@ private:
     //some post-processing on the file, with their data class
     std::unique_ptr<FanMover> m_fan_mover;
 
+<<<<<<< HEAD
     std::string               _extrude(const ExtrusionPath &path, const std::string_view description, double speed = -1);
     void                      _extrude_line(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string_view comment);
     void                      _extrude_line_cut_corner(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string_view comment, Point& last_pos, const double path_width);
@@ -631,9 +741,21 @@ private:
     double_t                  _compute_speed_mm_per_sec(const ExtrusionPath &path_attrs, double speed, double &fan_speed);
     std::pair<double, double> _compute_acceleration(const ExtrusionPath &path);
     std::string               _after_extrude(const ExtrusionPath &path);
+=======
+    std::function<void()> m_throw_if_canceled = [](){};
+
+    double compute_e_per_mm(double path_mm3_per_mm);
+    std::string _extrude(const ExtrusionPath &path, const std::string &description, double speed = -1);
+    void _extrude_line(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string& comment, ExtrusionRole role);
+    void _extrude_line_cut_corner(std::string& gcode_str, const Line& line, const double e_per_mm, const std::string& comment, Point& last_pos, const double path_width);
+    std::string _before_extrude(const ExtrusionPath &path, const std::string &description, double speed = -1);
+    double_t    _compute_speed_mm_per_sec(const ExtrusionPath &path, double speed, std::string *comment);
+    std::string _after_extrude(const ExtrusionPath &path);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     void print_machine_envelope(GCodeOutputStream &file, const Print &print);
-    void _print_first_layer_bed_temperature(GCodeOutputStream &file, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait);
-    void _print_first_layer_extruder_temperatures(GCodeOutputStream &file, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait);
+    void _print_first_layer_bed_temperature(std::string &out, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait);
+    void _print_first_layer_chamber_temperature(std::string &out, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait);
+    void _print_first_layer_extruder_temperatures(std::string &out, const Print &print, const std::string &gcode, uint16_t first_printing_extruder_id, bool wait);
     // On the first printing layer. This flag triggers first layer speeds.
     bool                                on_first_layer() const { return m_layer != nullptr && m_layer->id() == 0; }
     // To control print speed of 1st object layer over raft interface.

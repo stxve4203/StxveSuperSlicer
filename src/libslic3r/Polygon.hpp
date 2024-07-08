@@ -85,6 +85,7 @@ public:
     void densify(float min_length, std::vector<float>* lengths = nullptr);
     void triangulate_convex(Polygons* polygons) const;
     Point centroid() const;
+<<<<<<< HEAD
 
     bool intersection(const Line& line, Point* intersection) const;
     bool first_intersection(const Line& line, Point* intersection) const;
@@ -95,8 +96,14 @@ public:
     // Zero angle_threshold means to accept all convex resp. concave points.
     Points convex_points(double angle_threshold = 0.) const;
     Points concave_points(double angle_threshold = 0.) const;
+=======
+    Points concave_points(double angle = PI) const;
+    Points convex_points(double angle = PI) const;
+    std::vector<size_t> concave_points_idx(double angle = PI) const;
+    std::vector<size_t> convex_points_idx(double angle = PI) const;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     // Projection of a point onto the polygon.
-    Point point_projection(const Point &point) const;
+    std::pair<Point, size_t> point_projection(const Point &point) const override;
     std::vector<float> parameter_by_length() const;
     /// remove points that are (almost) on an existing line from previous & next point.
     /// return number of point removed

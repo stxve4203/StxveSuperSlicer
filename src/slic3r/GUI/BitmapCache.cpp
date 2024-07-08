@@ -11,8 +11,12 @@
 #include "GUI_Utils.hpp"
 
 #include <boost/filesystem.hpp>
+<<<<<<< HEAD
 #include <boost/nowide/cstdio.hpp>
 #include <boost/algorithm/string/replace.hpp>
+=======
+#include <boost/log/trivial.hpp>
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
 #ifdef __WXGTK2__
     // Broken alpha workaround
@@ -294,6 +298,42 @@ wxBitmap* BitmapCache::insert_raw_rgba(const std::string &bitmap_key, unsigned w
     return this->insert(bitmap_key, wxImage_to_wxBitmap_with_alpha(std::move(image), m_scale));
 }
 
+<<<<<<< HEAD
+=======
+wxBitmap* BitmapCache::load_png(const std::string &bitmap_name, unsigned width, unsigned height,
+    uint32_t color/* = false*/)
+{
+    std::string bitmap_key = bitmap_name + ( height !=0 ? 
+                                           "-h" + std::to_string(height) : 
+                                           "-w" + std::to_string(width))
+                                         + ((color == 9079434) ? "-gs" : "");
+
+    auto it = m_map.find(bitmap_key);
+    if (it != m_map.end())
+        return it->second;
+
+    wxImage image;
+    BOOST_LOG_TRIVIAL(debug) << "Loading (load_png) image: '"<<bitmap_name<<"'.png";
+    if (! image.LoadFile(Slic3r::GUI::from_u8(Slic3r::var(bitmap_name + ".png")), wxBITMAP_TYPE_PNG) ||
+        image.GetWidth() == 0 || image.GetHeight() == 0)
+        return nullptr;
+
+    if (height != 0 && unsigned(image.GetHeight()) != height)
+        width   = unsigned(0.5f + float(image.GetWidth()) * height / image.GetHeight());
+    else if (width != 0 && unsigned(image.GetWidth()) != width)
+        height  = unsigned(0.5f + float(image.GetHeight()) * width / image.GetWidth());
+
+    if (height != 0 && width != 0)
+        image.Rescale(width, height, wxIMAGE_QUALITY_BILINEAR);
+
+    if (color == 9079434)
+        image = image.ConvertToGreyscale(m_gs, m_gs, m_gs);
+    else if( color < 0xFFFFFFFF)
+        image.Replace(33, 114, 235, color & 0xFF, (color & 0xFF00) >> 8, (color & 0xFF0000) >> 16);
+
+    return this->insert(bitmap_key, wxImage_to_wxBitmap_with_alpha(std::move(image)));
+}
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
 NSVGimage* BitmapCache::nsvgParseFromFileWithReplace(const char* filename, const char* units, float dpi, const std::map<std::string, std::string>& replaces)
 {

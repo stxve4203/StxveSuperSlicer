@@ -63,6 +63,14 @@ int GUI_Run(GUI_InitParams &params)
 
         GUI::GUI_App::SetInstance(gui);
         gui->init_params = &params;
+<<<<<<< HEAD
+=======
+
+#ifdef WIN32
+        test_win32_dll_loaded(gui->app_config.get());
+#endif
+
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
         return wxEntry(params.argc, params.argv);
     } catch (const Slic3r::Exception &ex) {
         boost::nowide::cerr << ex.what() << std::endl;

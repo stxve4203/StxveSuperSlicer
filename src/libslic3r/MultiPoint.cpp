@@ -63,11 +63,11 @@ int MultiPoint::find_point(const Point &point, coordf_t scaled_epsilon) const
     if (scaled_epsilon == 0)
         return this->find_point(point);
 
-    auto dist2_min = std::numeric_limits<double>::max();
-    auto eps2      = scaled_epsilon * scaled_epsilon;
-    int  idx_min  = -1;
+    coordf_t dist2_min = std::numeric_limits<coordf_t>::max();
+    coordf_t eps2      = scaled_epsilon * scaled_epsilon;
+    int      idx_min   = -1;
     for (const Point &pt : this->points) {
-        double d2 = (pt - point).cast<double>().squaredNorm();
+        coordf_t d2 = pt.distance_to_square(point); //(pt - point).cast<coordf_t>().squaredNorm();
         if (d2 < dist2_min) {
             idx_min = int(&pt - &this->points.front());
             dist2_min = d2;
@@ -108,9 +108,81 @@ bool MultiPoint::remove_duplicate_points()
     return false;
 }
 
+<<<<<<< HEAD
 // Projection of a point onto the polygon.
 //FIXME: delete this, it's moved somewhere.
 Point MultiPoint::point_projection(const Point &point) const {
+=======
+bool MultiPoint::intersection(const Line& line, Point* intersection) const
+{
+    Lines lines = this->lines();
+    for (Lines::const_iterator it = lines.begin(); it != lines.end(); ++it) {
+        if (it->intersection(line, intersection)) return true;
+    }
+    return false;
+}
+
+bool MultiPoint::first_intersection(const Line& line, Point* intersection) const
+{
+    bool   found = false;
+    double dmin  = 0.;
+    Line l;
+    //for (const Line &l : this->lines()) {
+    for (size_t idx = 1; idx < points.size(); ++idx) {
+        l.a = points[idx-1];
+        l.b = points[idx];
+        Point ip;
+        if (l.intersection(line, &ip)) {
+            if (! found) {
+                found = true;
+                dmin = (line.a - ip).cast<double>().norm();
+                *intersection = ip;
+            } else {
+                double d = (line.a - ip).cast<double>().norm();
+                if (d < dmin) {
+                    dmin = d;
+                    *intersection = ip;
+                }
+            }
+        }
+    }
+    /*last-to-first line */{
+        assert(!points.back().coincides_with_epsilon(points.front()));
+        l.a = points.back();
+        l.b = points.front();
+        Point ip;
+        if (l.intersection(line, &ip)) {
+            if (!found) {
+                found         = true;
+                dmin          = (line.a - ip).cast<double>().norm();
+                *intersection = ip;
+            } else {
+                double d = (line.a - ip).cast<double>().norm();
+                if (d < dmin) {
+                    dmin          = d;
+                    *intersection = ip;
+                }
+            }
+        }
+    }
+    return found;
+}
+
+bool MultiPoint::intersections(const Line &line, Points *intersections) const
+{
+    size_t intersections_size = intersections->size();
+    for (const Line &polygon_line : this->lines()) {
+        Point intersection;
+        if (polygon_line.intersection(line, &intersection))
+            intersections->emplace_back(std::move(intersection));
+    }
+    return intersections->size() > intersections_size;
+}
+
+// Projection of a point onto the polygon.
+std::pair<Point, size_t> MultiPoint::point_projection(const Point &point) const {
+    size_t pt_idx = size_t(-1);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     Point proj = point;
     double dmin = std::numeric_limits<double>::max();
     if (!this->points.empty()) {
@@ -121,11 +193,13 @@ Point MultiPoint::point_projection(const Point &point) const {
             if (d < dmin) {
                 dmin = d;
                 proj = pt0;
+                pt_idx = i;
             }
             d = pt1.distance_to(point);
             if (d < dmin) {
                 dmin = d;
                 proj = pt1;
+                pt_idx = i + 1;
             }
             Vec2d v1(coordf_t(pt1(0) - pt0(0)), coordf_t(pt1(1) - pt0(1)));
             coordf_t div = dot(v1);
@@ -138,12 +212,13 @@ Point MultiPoint::point_projection(const Point &point) const {
                     if (d < dmin) {
                         dmin = d;
                         proj = foot;
+                        pt_idx = i;
                     }
                 }
             }
         }
     }
-    return proj;
+    return {proj, pt_idx};
 }
 
 /// <summary>

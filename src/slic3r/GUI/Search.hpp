@@ -114,7 +114,12 @@ class OptionsSearcher
     ConfigOptionMode                        current_tags {comNone};
 
     std::vector<Option>                     options{};
+<<<<<<< HEAD
     std::vector<Option>                     preferences_options {};
+=======
+    bool sorted = false;
+    std::vector<Option>                     script_options{};
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     std::vector<FoundOption>                found {};
     std::map<ConfigOptionMode, wxString>    tag_label_cache;
 
@@ -122,6 +127,7 @@ class OptionsSearcher
 
     void sort_options() {
         std::sort(options.begin(), options.end());
+        sorted = true;
     }
     void sort_found() {
         std::sort(found.begin(), found.end(), [](const FoundOption& f1, const FoundOption& f2) {
@@ -144,6 +150,7 @@ public:
     void check_and_update(  PrinterTechnology pt_in, 
                             ConfigOptionMode tags_in, 
                             std::vector<InputInfo> input_values);
+    void append_script_option(const ConfigOptionDef &opt, Preset::Type preset_type, int16_t idx);
     bool search();
     bool search(const std::string& search, bool force = false);
 
@@ -160,10 +167,7 @@ public:
     const GroupAndCategory&         get_group_and_category (const std::string& opt_key, ConfigOptionMode tags) const;
     std::string& search_string() { return search_line; }
 
-    void sort_options_by_key() {
-        sort_options();
-    }
-    void sort_options_by_label() { sort_options(); }
+    bool is_sorted() { return sorted; }
 
     void show_dialog();
     void dlg_sys_color_changed();

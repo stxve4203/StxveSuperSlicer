@@ -73,6 +73,7 @@ namespace ClipperUtils {
     Points EmptyPathsProvider::s_empty_points;
     Points SinglePathProvider::s_end;
 
+<<<<<<< HEAD
     // Clip source polygon to be used as a clipping polygon with a bouding box around the source (to be clipped) polygon.
     // Useful as an optimization for expensive ClipperLib operations, for example when clipping source polygons one by one
     // with a set of polygons covering the whole layer below.
@@ -81,10 +82,23 @@ namespace ClipperUtils {
     {
         using PointType = typename PointsType::value_type;
 
+=======
+    
+    // Clip source polygon to be used as a clipping polygon with a bouding box around the source (to be clipped)
+    // polygon. Useful as an optimization for expensive ClipperLib operations, for example when clipping source
+    // polygons one by one with a set of polygons covering the whole layer below.
+    template<typename PointsType>
+    inline void clip_clipper_polygon_with_subject_bbox_templ(const PointsType & src,
+                                                             const BoundingBox &bbox,
+                                                             PointsType &       out)
+    {
+        using PointType = typename PointsType::value_type;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
         out.clear();
         const size_t cnt = src.size();
         if (cnt < 3)
             return;
+<<<<<<< HEAD
 
         enum class Side {
             Left   = 1,
@@ -106,6 +120,19 @@ namespace ClipperUtils {
         for (size_t i = 0; i < last; ++ i) {
             int sides_next = sides(src[i + 1]);
             if (// This point is inside. Take it.
+=======
+        enum class Side { Left = 1, Right = 2, Top = 4, Bottom = 8 };
+        auto sides = [bbox](const PointType &p) {
+            return int(p.x() < bbox.min.x()) * int(Side::Left) + int(p.x() > bbox.max.x()) * int(Side::Right) +
+                   int(p.y() < bbox.min.y()) * int(Side::Bottom) + int(p.y() > bbox.max.y()) * int(Side::Top);
+        };
+        int          sides_prev = sides(src.back());
+        int          sides_this = sides(src.front());
+        const size_t last       = cnt - 1;
+        for (size_t i = 0; i < last; ++i) {
+            int sides_next = sides(src[i + 1]);
+            if ( // This point is inside. Take it.
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
                 sides_this == 0 ||
                 // Either this point is outside and previous or next is inside, or
                 // the edge possibly cuts corner of the bounding box.
@@ -118,9 +145,14 @@ namespace ClipperUtils {
             }
             sides_this = sides_next;
         }
+<<<<<<< HEAD
 
         // Never produce just a single point output polygon.
         if (! out.empty())
+=======
+        // Never produce just a single point output polygon.
+        if (!out.empty())
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
             if (int sides_next = sides(out.front());
                 // The last point is inside. Take it.
                 sides_this == 0 ||
@@ -129,6 +161,7 @@ namespace ClipperUtils {
                 (sides_prev & sides_this & sides_next) == 0)
                 out.emplace_back(src.back());
     }
+<<<<<<< HEAD
 
     void clip_clipper_polygon_with_subject_bbox(const Points &src, const BoundingBox &bbox, Points &out)
         { clip_clipper_polygon_with_subject_bbox_templ(src, bbox, out); }
@@ -137,38 +170,74 @@ namespace ClipperUtils {
 
     template<typename PointsType>
     [[nodiscard]] PointsType clip_clipper_polygon_with_subject_bbox_templ(const PointsType &src, const BoundingBox &bbox)
+=======
+    void clip_clipper_polygon_with_subject_bbox(const Points &src, const BoundingBox &bbox, Points &out)
+    {
+        clip_clipper_polygon_with_subject_bbox_templ(src, bbox, out);
+    }
+    void clip_clipper_polygon_with_subject_bbox(const ZPoints &src, const BoundingBox &bbox, ZPoints &out)
+    {
+        clip_clipper_polygon_with_subject_bbox_templ(src, bbox, out);
+    }
+    template<typename PointsType>
+    [[nodiscard]] PointsType clip_clipper_polygon_with_subject_bbox_templ(const PointsType & src,
+                                                                          const BoundingBox &bbox)
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     {
         PointsType out;
         clip_clipper_polygon_with_subject_bbox(src, bbox, out);
         return out;
     }
+<<<<<<< HEAD
 
     [[nodiscard]] Points clip_clipper_polygon_with_subject_bbox(const Points &src, const BoundingBox &bbox)
         { return clip_clipper_polygon_with_subject_bbox_templ(src, bbox); }
     [[nodiscard]] ZPoints clip_clipper_polygon_with_subject_bbox(const ZPoints &src, const BoundingBox &bbox)
         { return clip_clipper_polygon_with_subject_bbox_templ(src, bbox); }
 
+=======
+    [[nodiscard]] Points clip_clipper_polygon_with_subject_bbox(const Points &src, const BoundingBox &bbox)
+    {
+        return clip_clipper_polygon_with_subject_bbox_templ(src, bbox);
+    }
+    [[nodiscard]] ZPoints clip_clipper_polygon_with_subject_bbox(const ZPoints &src, const BoundingBox &bbox)
+    {
+        return clip_clipper_polygon_with_subject_bbox_templ(src, bbox);
+    }
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     void clip_clipper_polygon_with_subject_bbox(const Polygon &src, const BoundingBox &bbox, Polygon &out)
     {
         clip_clipper_polygon_with_subject_bbox(src.points, bbox, out.points);
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     [[nodiscard]] Polygon clip_clipper_polygon_with_subject_bbox(const Polygon &src, const BoundingBox &bbox)
     {
         Polygon out;
         clip_clipper_polygon_with_subject_bbox(src.points, bbox, out.points);
         return out;
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     [[nodiscard]] Polygons clip_clipper_polygons_with_subject_bbox(const Polygons &src, const BoundingBox &bbox)
     {
         Polygons out;
         out.reserve(src.size());
+<<<<<<< HEAD
         for (const Polygon &p : src)
             out.emplace_back(clip_clipper_polygon_with_subject_bbox(p, bbox));
         out.erase(
             std::remove_if(out.begin(), out.end(), [](const Polygon &polygon) { return polygon.empty(); }),
             out.end());
+=======
+        for (const Polygon &p : src) out.emplace_back(clip_clipper_polygon_with_subject_bbox(p, bbox));
+        out.erase(std::remove_if(out.begin(), out.end(), [](const Polygon &polygon) { return polygon.empty(); }),
+                  out.end());
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
         return out;
     }
     [[nodiscard]] Polygons clip_clipper_polygons_with_subject_bbox(const ExPolygon &src, const BoundingBox &bbox)
@@ -176,14 +245,35 @@ namespace ClipperUtils {
         Polygons out;
         out.reserve(src.num_contours());
         out.emplace_back(clip_clipper_polygon_with_subject_bbox(src.contour, bbox));
+<<<<<<< HEAD
         for (const Polygon &p : src.holes)
             out.emplace_back(clip_clipper_polygon_with_subject_bbox(p, bbox));
         out.erase(
             std::remove_if(out.begin(), out.end(), [](const Polygon &polygon) { return polygon.empty(); }),
             out.end());
+=======
+        for (const Polygon &p : src.holes) out.emplace_back(clip_clipper_polygon_with_subject_bbox(p, bbox));
+        out.erase(std::remove_if(out.begin(), out.end(), [](const Polygon &polygon) { return polygon.empty(); }),
+                  out.end());
+        return out;
+    }
+    [[nodiscard]] Polygons clip_clipper_polygons_with_subject_bbox(const ExPolygons &src, const BoundingBox &bbox)
+    {
+        Polygons out;
+        out.reserve(number_polygons(src));
+        for (const ExPolygon &p : src) {
+            Polygons temp = clip_clipper_polygons_with_subject_bbox(p, bbox);
+            out.insert(out.end(), temp.begin(), temp.end());
+        }
+
+        out.erase(std::remove_if(out.begin(), out.end(), [](const Polygon &polygon) { return polygon.empty(); }),
+                  out.end());
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
         return out;
     }
 }
+
+
 
 static ExPolygons PolyTreeToExPolygons(ClipperLib::PolyTree &&polytree)
 {
@@ -1234,8 +1324,13 @@ Slic3r::Polylines diff_pl(const Slic3r::Polylines &subject, const Slic3r::Polygo
     { return _clipper_pl_open(ClipperLib::ctDifference, ClipperUtils::PolylinesProvider(subject), ClipperUtils::PolygonsProvider(clip)); }
 Slic3r::Polylines diff_pl(const Slic3r::Polyline &subject, const Slic3r::ExPolygon &clip)
     { return _clipper_pl_open(ClipperLib::ctDifference, ClipperUtils::SinglePathProvider(subject.points), ClipperUtils::ExPolygonProvider(clip)); }
+<<<<<<< HEAD
 Slic3r::Polylines diff_pl(const Slic3r::Polyline &subject, const Slic3r::ExPolygons &clip)
     { return _clipper_pl_open(ClipperLib::ctDifference, ClipperUtils::SinglePathProvider(subject.points), ClipperUtils::ExPolygonsProvider(clip)); }
+=======
+Slic3r::Polylines diff_pl(const Slic3r::Polyline &subject, const Slic3r::Polygon &clip)
+    { return _clipper_pl_open(ClipperLib::ctDifference, ClipperUtils::SinglePathProvider(subject.points), ClipperUtils::SinglePathProvider(clip.points)); }
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 Slic3r::Polylines diff_pl(const Slic3r::Polylines &subject, const Slic3r::ExPolygon &clip)
     { return _clipper_pl_open(ClipperLib::ctDifference, ClipperUtils::PolylinesProvider(subject), ClipperUtils::ExPolygonProvider(clip)); }
 Slic3r::Polylines diff_pl(const Slic3r::Polylines &subject, const Slic3r::ExPolygons &clip)

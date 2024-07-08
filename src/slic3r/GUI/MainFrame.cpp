@@ -373,17 +373,21 @@ void MainFrame::update_icon() {
     }
     case ESettingsLayout::Tabs:
     {
+#ifdef __APPLE__
+        // no icons for macos
+        break;
+#else
         if (icon_size >= 8)
         {
             m_tabpanel->SetPageImage(0, 0);
             m_tabpanel->SetPageImage(1, 1);
             m_tabpanel->SetPageImage(2, 2);
-            m_tabpanel->SetPageImage(3, 3);
-            m_tabpanel->SetPageImage(4, m_plater->printer_technology() == PrinterTechnology::ptSLA ? 6 : 4);
-            m_tabpanel->SetPageImage(5, m_plater->printer_technology() == PrinterTechnology::ptSLA ? 7 : 5);
+            m_tabpanel->SetPageImage(3, m_plater->printer_technology() == PrinterTechnology::ptSLA ? 6 : 3);
+            m_tabpanel->SetPageImage(4, m_plater->printer_technology() == PrinterTechnology::ptSLA ? 7 : 4);
+            m_tabpanel->SetPageImage(5, m_plater->printer_technology() == PrinterTechnology::ptSLA ? 8 : 5);
         }
         break;
-    }
+#endif
     case ESettingsLayout::Dlg:
     {
         if (m_tabpanel->GetPageCount() == 4 && icon_size >= 8) {
@@ -1266,7 +1270,7 @@ void MainFrame::init_tabpanel()
         // Show a correct number of filament fields.
         // nozzle_diameter is undefined when SLA printer is selected
         if (full_config.has("nozzle_diameter")) {
-            m_plater->on_extruders_change(full_config.option<ConfigOptionFloats>("nozzle_diameter")->values.size());
+            m_plater->on_extruders_change(full_config.option<ConfigOptionFloats>("nozzle_diameter")->size());
         }
     }
 }
@@ -1334,6 +1338,10 @@ void MainFrame::create_preset_tabs()
     add_created_tab(new TabSLAPrint(m_tabpanel));
     add_created_tab(new TabSLAMaterial(m_tabpanel));
     add_created_tab(new TabPrinter(m_tabpanel));
+    TabFrequent* freq = (new TabFrequent(m_tabpanel, "Freq_fff", Preset::Type::TYPE_FREQUENT_FFF));
+    freq->create_preset_tab();
+    freq = (new TabFrequent(m_tabpanel, "Freq_sla", Preset::Type::TYPE_FREQUENT_SLA));
+    freq->create_preset_tab();
 }
 
 void MainFrame::add_created_tab(Tab* panel)
@@ -2059,6 +2067,8 @@ void MainFrame::init_menubar_as_editor()
             [this](wxCommandEvent&) { wxGetApp().filament_temperature_dialog(); });
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("Extruder retraction calibration")), _(L("Create a test print to help you to set your retraction length.")),
             [this](wxCommandEvent&) { wxGetApp().calibration_retraction_dialog(); });
+            append_menu_item(m_calibration_menu, wxID_ANY, _(L("Pressure calibration")), _(L("Create a model for tuning Pressure Linear advance.")),
+            [this](wxCommandEvent&) { wxGetApp().calibration_pressureadv_dialog(); });
         m_calibration_menu->AppendSeparator();
         append_menu_item(m_calibration_menu, wxID_ANY, _(L("Bridge flow calibration")), _(L("Create a test print to help you to set your bridge flow ratio.")),
             [this](wxCommandEvent&) { wxGetApp().bridge_tuning_dialog(); });
@@ -2229,6 +2239,136 @@ void MainFrame::update_menubar()
     }
 }
 
+<<<<<<< HEAD
+=======
+#if 0
+// To perform the "Quck Slice", "Quick Slice and Save As", "Repeat last Quick Slice" and "Slice to SVG".
+void MainFrame::quick_slice(const int qs)
+{
+//     my $progress_dialog;
+    wxString input_file;
+//  eval
+//     {
+    // validate configuration
+    auto config = wxGetApp().preset_bundle->full_config();
+    auto valid = config.validate();
+    if (! valid.empty()) {
+        show_error(this, valid);
+        return;
+    }
+
+    // select input file
+    if (!(qs & qsReslice)) {
+        wxFileDialog dlg(this, _L("Choose a file to slice (STL/OBJ/AMF/3MF/PRUSA):"),
+            wxGetApp().app_config->get_last_dir(), "",
+            file_wildcards(FT_MODEL), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+        if (dlg.ShowModal() != wxID_OK)
+            return;
+        input_file = dlg.GetPath();
+        if (!(qs & qsExportSVG))
+            m_qs_last_input_file = input_file;
+    }
+    else {
+        if (m_qs_last_input_file.IsEmpty()) {
+            //wxMessageDialog dlg(this, _L("No previously sliced file."),
+            MessageDialog dlg(this, _L("No previously sliced file."),
+                _L("Error"), wxICON_ERROR | wxOK);
+            dlg.ShowModal();
+            return;
+        }
+        if (std::ifstream(m_qs_last_input_file.ToUTF8().data())) {
+            //wxMessageDialog dlg(this, _L("Previously sliced file (")+m_qs_last_input_file+_L(") not found."),
+            MessageDialog dlg(this, _L("Previously sliced file (")+m_qs_last_input_file+_L(") not found."),
+                _L("File Not Found"), wxICON_ERROR | wxOK);
+            dlg.ShowModal();
+            return;
+        }
+        input_file = m_qs_last_input_file;
+    }
+    auto input_file_basename = get_base_name(input_file);
+    wxGetApp().app_config->update_skein_dir(get_dir_name(input_file));
+
+    auto bed_shape = Slic3r::Polygon::new_scale(config.option<ConfigOptionPoints>("bed_shape")->get_values());
+//     auto print_center = Slic3r::Pointf->new_unscale(bed_shape.bounding_box().center());
+// 
+//     auto sprint = new Slic3r::Print::Simple(
+//         print_center = > print_center,
+//         status_cb = > [](int percent, const wxString& msg) {
+//         m_progress_dialog->Update(percent, msg+"…");
+//     });
+
+    // keep model around
+    auto model = Slic3r::Model::read_from_file(input_file.ToUTF8().data());
+
+//     sprint->apply_config(config);
+//     sprint->set_model(model);
+
+    // Copy the names of active presets into the placeholder parser.
+//     wxGetApp().preset_bundle->export_selections(sprint->placeholder_parser);
+
+    // select output file
+    wxString output_file;
+    if (qs & qsReslice) {
+        if (!m_qs_last_output_file.IsEmpty())
+            output_file = m_qs_last_output_file;
+    } 
+    else if (qs & qsSaveAs) {
+        // The following line may die if the output_filename_format template substitution fails.
+        wxFileDialog dlg(this, from_u8((boost::format(_utf8(L("Save %s file as:"))) % ((qs & qsExportSVG) ? _L("SVG") : _L("G-code"))).str()),
+            wxGetApp().app_config->get_last_output_dir(get_dir_name(output_file)), get_base_name(input_file), 
+            qs & qsExportSVG ? file_wildcards(FT_SVG) : file_wildcards(FT_GCODE),
+            wxFD_SAVE | (wxGetApp().app_config->get_show_overwrite_dialog() ? wxFD_OVERWRITE_PROMPT : 0));
+        if (dlg.ShowModal() != wxID_OK)
+            return;
+        output_file = dlg.GetPath();
+        if (!(qs & qsExportSVG))
+            m_qs_last_output_file = output_file;
+        wxGetApp().app_config->update_last_output_dir(get_dir_name(output_file));
+    } 
+    else if (qs & qsExportPNG) {
+        wxFileDialog dlg(this, _L("Save zip file as:"),
+            wxGetApp().app_config->get_last_output_dir(get_dir_name(output_file)),
+            get_base_name(output_file), "*.sl1", wxFD_SAVE | (wxGetApp().app_config->get_show_overwrite_dialog() ? wxFD_OVERWRITE_PROMPT : 0));
+        if (dlg.ShowModal() != wxID_OK)
+            return;
+        output_file = dlg.GetPath();
+        }
+
+    // show processbar dialog
+    m_progress_dialog = new wxProgressDialog(_L("Slicing") + dots,
+    // TRN "Processing input_file_basename"
+                                             from_u8((boost::format(_utf8(L("Processing %s"))) % (input_file_basename + dots)).str()),
+        100, nullptr, wxPD_AUTO_HIDE);
+    m_progress_dialog->Pulse();
+    {
+//         my @warnings = ();
+//         local $SIG{ __WARN__ } = sub{ push @warnings, $_[0] };
+
+//         sprint->output_file(output_file);
+//         if (export_svg) {
+//             sprint->export_svg();
+//         }
+//         else if(export_png) {
+//             sprint->export_png();
+//         }
+//         else {
+//             sprint->export_gcode();
+//         }
+//         sprint->status_cb(undef);
+//         Slic3r::GUI::warning_catcher($self)->($_) for @warnings;
+    }
+    m_progress_dialog->Destroy();
+    m_progress_dialog = nullptr;
+
+    auto message = format(_L("%1% was successfully sliced."), input_file_basename);
+//     wxTheApp->notify(message);
+    //wxMessageDialog(this, message, _L("Slicing Done!"), wxOK | wxICON_INFORMATION).ShowModal();
+    MessageDialog(this, message, _L("Slicing Done!"), wxOK | wxICON_INFORMATION).ShowModal();
+//     };
+//     Slic3r::GUI::catch_error(this, []() { if (m_progress_dialog) m_progress_dialog->Destroy(); });
+}
+#endif
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
 void MainFrame::reslice_now()
 {
@@ -2812,10 +2952,10 @@ void MainFrame::on_value_changed(wxCommandEvent& event)
     }
 }
 
-void MainFrame::on_config_changed(DynamicPrintConfig* config) const
+void MainFrame::on_config_changed(const DynamicConfig &config) const
 {
     if (m_plater)
-        m_plater->on_config_change(*config); // propagate config change events to the plater
+        m_plater->on_config_change(config); // propagate config change events to the plater
 }
 
 void MainFrame::add_to_recent_projects(const wxString& filename)
@@ -2859,7 +2999,8 @@ void MainFrame::update_ui_from_settings()
     if (m_plater)
         m_plater->update_ui_from_settings();
     for (auto tab: wxGetApp().tabs_list)
-        tab->update_ui_from_settings();
+        if(tab->completed())
+            tab->update_ui_from_settings();
 }
 
 std::string MainFrame::get_base_name(const wxString &full_name, const char *extension) const 

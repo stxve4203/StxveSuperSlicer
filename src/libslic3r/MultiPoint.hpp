@@ -170,6 +170,10 @@ public:
     // Return index of the closest point to point closer than scaled_epsilon.
     // Return -1 if no such point exists.
     int  find_point(const Point &point, const coordf_t scaled_epsilon) const;
+<<<<<<< HEAD
+=======
+    bool has_boundary_point(const Point &point) const;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     int  closest_point_index(const Point &point) const {
         int idx = -1;
         if (! this->points.empty()) {
@@ -205,12 +209,19 @@ public:
         }
     }
 
+<<<<<<< HEAD
     static Points douglas_peucker(const Points &src, const double tolerance) { return Slic3r::douglas_peucker(src, tolerance); }
     static Points douglas_peucker_plus(const Points& points, const double tolerance, const double min_length);
     static Points visivalingam(const Points &src, const double tolerance);
 
+=======
+    bool intersection(const Line& line, Point* intersection) const;
+    // if the line cross multiple times, it will return the poitn nearest from line.a
+    bool first_intersection(const Line& line, Point* intersection) const;
+    bool intersections(const Line &line, Points *intersections) const;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     // Projection of a point onto the lines defined by the points.
-    virtual Point point_projection(const Point &point) const;
+    virtual std::pair<Point, size_t> point_projection(const Point &point) const;
 
     inline auto begin()        { return points.begin(); }
     inline auto begin()  const { return points.begin(); }

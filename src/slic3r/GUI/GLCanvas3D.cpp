@@ -251,11 +251,11 @@ void GLCanvas3D::LayersEditing::render_overlay(const GLCanvas3D& canvas)
         const ConfigOptionFloats* nozzle_diameter = dynamic_cast<const ConfigOptionFloats*>(m_config->option("nozzle_diameter"));
         min_height = std::numeric_limits<float>::max();
         max_height = 0.f;
-        assert(extruders_min_height->values.size() == extruders_max_height->values.size());
-        assert(extruders_min_height->values.size() == nozzle_diameter->values.size());
-        for (size_t idx_extruder = 0; idx_extruder < extruders_min_height->values.size(); ++idx_extruder) {
-            min_height = std::min(min_height, float(extruders_min_height->get_abs_value(idx_extruder, nozzle_diameter->getFloat(idx_extruder))));
-            max_height = std::max(max_height, float(extruders_max_height->get_abs_value(idx_extruder, nozzle_diameter->getFloat(idx_extruder))));
+        assert(extruders_min_height->size() == extruders_max_height->size());
+        assert(extruders_min_height->size() == nozzle_diameter->size());
+        for (size_t idx_extruder = 0; idx_extruder < extruders_min_height->size(); ++idx_extruder) {
+            min_height = std::min(min_height, float(extruders_min_height->get_abs_value(idx_extruder, nozzle_diameter->get_float(idx_extruder))));
+            max_height = std::max(max_height, float(extruders_max_height->get_abs_value(idx_extruder, nozzle_diameter->get_float(idx_extruder))));
         }
         min_height = check_z_step(min_height, z_step);
         max_height = check_z_step(max_height, z_step);
@@ -1304,6 +1304,7 @@ void GLCanvas3D::SLAView::render_switch_button()
         ss_box = selection.get_screen_space_bounding_box();
     assert(ss_box.defined);
 
+<<<<<<< HEAD
     ImGuiWrapper& imgui = *wxGetApp().imgui();
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
@@ -1383,6 +1384,14 @@ void GLCanvas3D::SLAView::select_full_instance(const GLVolume::CompositeID& id)
 
     if (extended_selection)
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_OBJECT_SELECT));
+=======
+    AppConfig *appcfg = wxGetApp().app_config.get();
+    std::string dist_key = "min_object_distance", rot_key = "enable_rotation";
+    dist_key += postfix;
+    rot_key += postfix;
+    appcfg->set("arrange", dist_key.c_str(), std::to_string(new_value));
+    appcfg->set("arrange", rot_key.c_str(), ptr->enable_rotation ? "1" : "0");
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 }
 
 PrinterTechnology GLCanvas3D::current_printer_technology() const
@@ -2610,7 +2619,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
 
     if (printer_technology == ptFFF && m_config->has("nozzle_diameter")) {
         // Should the wipe tower be visualized ?
-        unsigned int extruders_count = (unsigned int)m_config->option<ConfigOptionFloats>("nozzle_diameter")->values.size();
+        unsigned int extruders_count = (unsigned int)m_config->option<ConfigOptionFloats>("nozzle_diameter")->size();
 
         const bool wt = dynamic_cast<const ConfigOptionBool*>(m_config->option("wipe_tower"))->value;
         const bool co = dynamic_cast<const ConfigOptionBool*>(m_config->option("complete_objects"))->value;
@@ -2626,10 +2635,15 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
 
             const Print *print = m_process->fff_print();
             //FIXME use real nozzle diameter
+<<<<<<< HEAD
             const double first_nozzle_diameter = m_config->option<ConfigOptionFloats>("nozzle_diameter")->values.front();
             const float depth = print->wipe_tower_data(extruders_count, first_nozzle_diameter).depth;
             const std::vector<std::pair<float, float>> z_and_depth_pairs = print->wipe_tower_data(extruders_count, first_nozzle_diameter).z_and_depth_pairs;
             const float height_real = print->wipe_tower_data(extruders_count, first_nozzle_diameter).height; // -1.f = unknown
+=======
+            float depth = print->wipe_tower_data(extruders_count, m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0)).depth;
+            float brim_width = print->wipe_tower_data(extruders_count, m_config->option<ConfigOptionFloats>("nozzle_diameter")->get_at(0)).brim_width;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
             // Height of a print (Show at least a slab).
             const double height = height_real < 0.f ? std::max(m_model->max_z(), 10.0) : height_real;
@@ -2774,10 +2788,12 @@ bool GLCanvas3D::is_gcode_preview_dirty(const GCodeProcessorResult& gcode_result
     return last_showned_gcode != gcode_result.computed_timestamp;
 }
 
-void GLCanvas3D::load_gcode_preview(const GCodeProcessorResult& gcode_result, const std::vector<std::string>& str_tool_colors)
+void GLCanvas3D::load_gcode_preview(const GCodeProcessorResult     &gcode_result,
+                                    const std::vector<std::string> &str_tool_colors,
+                                    bool                            force_gcode_color_recompute)
 {
-    if (last_showned_gcode != gcode_result.computed_timestamp
-        || !m_gcode_viewer.is_loaded(gcode_result)) {
+    if (last_showned_gcode != gcode_result.computed_timestamp || force_gcode_color_recompute ||
+        !m_gcode_viewer.is_loaded(gcode_result)) {
         last_showned_gcode = gcode_result.computed_timestamp;
         m_gcode_viewer.load(gcode_result, *this->fff_print());
 
@@ -3674,7 +3690,7 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
         m_dirty = true;
     };
 
-    auto* app_config = GUI::wxGetApp().app_config;
+    auto* app_config = GUI::wxGetApp().app_config.get();
     bool focus_platter_on_mouse = app_config->get("focus_platter_on_mouse") == "1";
     if (m_gizmos.on_mouse(evt)) {
         if (focus_platter_on_mouse) {
@@ -6895,6 +6911,7 @@ Vec3d GLCanvas3D::_mouse_to_3d(const Point& mouse_pos, float* z)
     if (m_canvas == nullptr)
         return Vec3d(DBL_MAX, DBL_MAX, DBL_MAX);
 
+<<<<<<< HEAD
     if (z == nullptr) {
         const SceneRaycaster::HitResult hit = m_scene_raycaster.hit(mouse_pos.cast<double>(), wxGetApp().plater()->get_camera(), nullptr);
         return hit.is_valid() ? hit.position.cast<double>() : _mouse_to_bed_3d(mouse_pos);
@@ -6906,6 +6923,32 @@ Vec3d GLCanvas3D::_mouse_to_3d(const Point& mouse_pos, float* z)
         igl::unproject(Vec3d(mouse_pos.x(), viewport[3] - mouse_pos.y(), *z), camera.get_view_matrix().matrix(), camera.get_projection_matrix().matrix(), viewport, out);
         return out;
     }
+=======
+    const Camera& camera = wxGetApp().plater()->get_camera();
+    Matrix4d modelview = camera.get_view_matrix().matrix();
+    Matrix4d projection= camera.get_projection_matrix().matrix();
+    Vec4i32 viewport(camera.get_viewport().data());
+
+    GLint y = viewport[3] - (GLint)mouse_pos(1);
+    double mouse_z;
+    if (z == nullptr) {
+        GLuint render_z;
+        if(sizeof(render_z)==2)
+            glsafe(::glReadPixels((GLint) mouse_pos(0), y, 1, 1, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, (void *) &render_z));
+        else if(sizeof(render_z)==4)
+            glsafe(::glReadPixels((GLint) mouse_pos(0), y, 1, 1, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (void *) &render_z));
+        else {
+            BOOST_LOG_TRIVIAL(error) << "error, opengl depth buffer of odd size.";
+        }
+        mouse_z = (double(render_z)/std::numeric_limits<GLuint>::max());
+    } else {
+        mouse_z = *z;
+    }
+
+    Vec3d out;
+    igl::unproject(Vec3d(mouse_pos(0), y, mouse_z), modelview, projection, viewport, out);
+    return out;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 }
 
 Vec3d GLCanvas3D::_mouse_to_bed_3d(const Point& mouse_pos)
@@ -6994,8 +7037,14 @@ void GLCanvas3D::_load_skirt_brim_preview_toolpaths(const BuildVolume &build_vol
             for (const PrintObject* print_object : print->objects()) {
                 if (!print_object->brim().empty())
                     for (const PrintInstance& inst : print_object->instances()) {
+<<<<<<< HEAD
                         if (!print_object->brim().empty()) volume = ensure_volume_is_ready(volume, init_data);
                         _3DScene::extrusionentity_to_verts(print_object->brim(), print_zs[i], inst.shift, init_data);
+=======
+                        if (!print_object->brim().empty()) volume = ensure_volume_is_ready(volume);
+                        _3DScene::extrusionentity_to_verts(print_object->brim(), print_zs[i], 
+                            print->config().complete_objects? inst.shift : Point(0, 0), *volume);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
                     }
                 if (print_object->skirt_first_layer())
                     for (const PrintInstance& inst : print_object->instances()) {
@@ -7013,8 +7062,14 @@ void GLCanvas3D::_load_skirt_brim_preview_toolpaths(const BuildVolume &build_vol
         for (const PrintObject* print_object : print->objects()) {
             if ( !print_object->skirt().empty() && (i != 0 || !print_object->skirt_first_layer()))
                 for (const PrintInstance& inst : print_object->instances()) {
+<<<<<<< HEAD
                     if (!print_object->skirt().empty()) volume = ensure_volume_is_ready(volume, init_data);
                     _3DScene::extrusionentity_to_verts(print_object->skirt(), print_zs[i], inst.shift, init_data);
+=======
+                    if (!print_object->skirt().empty()) volume = ensure_volume_is_ready(volume);
+                    _3DScene::extrusionentity_to_verts(print_object->skirt(), print_zs[i],
+                        print->config().complete_objects? inst.shift : Point(0, 0), *volume);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
                 }
         }
     }
@@ -7305,6 +7360,7 @@ void GLCanvas3D::_load_print_object_toolpaths(const PrintObject& print_object, c
                         for (const ExtrusionEntity *ee : layerm->fills()) {
                             // fill represents infill extrusions of a single island.
                             const auto *fill = dynamic_cast<const ExtrusionEntityCollection*>(ee);
+<<<<<<< HEAD
                             if (fill != nullptr && !fill->entities().empty())
                                 _3DScene::extrusionentity_to_verts(*fill, float(layer->print_z), copy,
                                                                    select_geometry(idx_layer,
@@ -7315,6 +7371,20 @@ void GLCanvas3D::_load_print_object_toolpaths(const PrintObject& print_object, c
                                                                                        GCodeExtrusionRole::SolidInfill :
                                                                                        GCodeExtrusionRole::InternalInfill),
                                                                    feature_to_geometry_map);
+=======
+                            if (fill != nullptr && !fill->entities().empty()) {
+                                bool has_solid_infill = HasRoleVisitor::search(fill->entities(), HasSolidInfillVisitor{});
+                                _3DScene::extrusionentity_to_verts(*fill, 
+                                    float(layer->print_z), 
+                                    copy,
+	                                volume(idx_layer, 
+                                        has_solid_infill ?
+                                            layerm->region().config().solid_infill_extruder :
+                                            layerm->region().config().infill_extruder,
+                                        has_solid_infill ? 4 : 3),
+                                    feature_to_volume_map);
+                            }
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
                         }
                     }
                 }
@@ -7664,6 +7734,7 @@ void GLCanvas3D::_set_warning_notification(EWarning warning, bool state)
             "Resolve the current problem to continue slicing.");
         error = ErrorType::PLATER_ERROR;
         break;
+<<<<<<< HEAD
     case EWarning::GCodeConflict: {
         const ConflictResultOpt& conflict_result = m_gcode_viewer.get_conflict_result();
         if (!conflict_result.has_value()) { break; }
@@ -7677,6 +7748,9 @@ void GLCanvas3D::_set_warning_notification(EWarning warning, bool state)
         error = ErrorType::SLICING_ERROR;
         break;
     }
+=======
+    case EWarning::PrintWarning: text = ""; error = ErrorType::PLATER_WARNING; break;
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
     }
     auto& notification_manager = *wxGetApp().plater()->get_notification_manager();
 

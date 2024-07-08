@@ -305,7 +305,13 @@ PrinterPicker::PrinterPicker(wxWindow *parent, const VendorProfile &vendor, wxSt
 
         wxBitmap bitmap;
         int bitmap_width = 0;
+<<<<<<< HEAD
         auto load_bitmap = [](const wxString& bitmap_file, wxBitmap& bitmap, int& bitmap_width) {
+=======
+        auto load_bitmap = [](const wxString& bitmap_file, wxBitmap& bitmap, int& bitmap_width)->bool {
+        if (wxFileExists(bitmap_file)) {
+            BOOST_LOG_TRIVIAL(debug) << "Loading (PrinterPicker) image for wizard: '"<<bitmap_file<<"'";
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
             bitmap.LoadFile(bitmap_file, wxBITMAP_TYPE_PNG);
             bitmap_width = bitmap.GetWidth();
         };
@@ -1362,8 +1368,14 @@ PageUpdate::PageUpdate(ConfigWizard *parent)
     , version_check(true)
     , preset_update(true)
 {
+<<<<<<< HEAD
     const AppConfig *app_config = wxGetApp().app_config;
     auto boldfont = wxGetApp().bold_font();
+=======
+    const AppConfig *app_config = wxGetApp().app_config.get();
+    auto boldfont = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
+    boldfont.SetWeight(wxFONTWEIGHT_BOLD);
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
 
     auto *box_slic3r = new wxCheckBox(this, wxID_ANY, _L("Check for application updates"));
     box_slic3r->SetValue(app_config->get("notify_release") != "none");
@@ -2012,10 +2024,10 @@ void PageDiameters::apply_custom_config(DynamicPrintConfig &config)
     config.option("infill_extrusion_width")->set_phony(true);
     config.option("solid_infill_extrusion_width")->set_phony(true);
     config.option("top_infill_extrusion_width")->set_phony(true);
-    config.set_key_value("perimeter_extrusion_change_odd_layers", new ConfigOptionFloat(0));
-    config.set_key_value("external_perimeter_extrusion_change_odd_layers", new ConfigOptionFloat(0));
-    config.set_key_value("infill_extrusion_change_odd_layers", new ConfigOptionFloat(0));
-    config.set_key_value("solid_infill_extrusion_change_odd_layers", new ConfigOptionFloat(0));
+    config.set_key_value("perimeter_extrusion_change_odd_layers", new ConfigOptionFloatOrPercent(0, false));
+    config.set_key_value("external_perimeter_extrusion_change_odd_layers", new ConfigOptionFloatOrPercent(0, false));
+    config.set_key_value("infill_extrusion_change_odd_layers", new ConfigOptionFloatOrPercent(0, false));
+    config.set_key_value("solid_infill_extrusion_change_odd_layers", new ConfigOptionFloatOrPercent(0, false));
     config.update_phony({});
 }
 
@@ -2344,8 +2356,8 @@ const std::string& Materials::get_vendor(const Preset *preset) const
 const std::string& Materials::get_filament_type(const Preset *preset)
 {
     const auto *opt = preset->config.opt<ConfigOptionStrings>("filament_type");
-    if (opt != nullptr && opt->values.size() > 0) {
-        return opt->values[0];
+    if (opt != nullptr && opt->size() > 0) {
+        return opt->get_at(0);
     } else {
         return UNKNOWN;
     }
@@ -2487,7 +2499,7 @@ void ConfigWizard::priv::load_vendors()
     bundles = BundleMap::load();
 
     // Load up the set of vendors / models / variants the user has had enabled up till now
-    AppConfig *app_config = wxGetApp().app_config;
+    AppConfig *app_config = wxGetApp().app_config.get();
     appconfig_new.set_vendors(*app_config);
 
     for (const auto& printer : wxGetApp().preset_bundle->printers) {
@@ -3629,7 +3641,7 @@ bool ConfigWizard::run(RunReason reason, StartPage start_page)
 
     if (ShowModal() == wxID_OK) {
         bool apply_keeped_changes = false;
-        if (! p->apply_config(app.app_config, app.preset_bundle, app.preset_updater, apply_keeped_changes))
+        if (! p->apply_config(app.app_config.get(), app.preset_bundle.get(), app.preset_updater.get(), apply_keeped_changes))
             return false;
 
         if (apply_keeped_changes)

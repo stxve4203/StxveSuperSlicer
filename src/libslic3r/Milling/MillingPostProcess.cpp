@@ -139,9 +139,15 @@ namespace Slic3r {
 
     bool MillingPostProcess::can_be_milled(const Layer* layer) {
         double max_first_layer = 0;
+<<<<<<< HEAD
         for (double diam : this->print_config.nozzle_diameter.values)
             max_first_layer = std::max(max_first_layer, this->config.milling_after_z.get_abs_value(this->object_config.first_layer_height.get_abs_value(diam)));
         return !this->print_config.milling_diameter.values.empty() && this->config.milling_post_process
+=======
+        for (double diam : this->print_config->nozzle_diameter.get_values())
+            max_first_layer = std::max(max_first_layer, config->milling_after_z.get_abs_value(this->object_config->first_layer_height.get_abs_value(diam)));
+        return !print_config->milling_diameter.empty() && config->milling_post_process
+>>>>>>> 03906fa85a89e1eff76b243e0025d140dc081c58
             && layer->bottom_z() >= max_first_layer;
     }
 

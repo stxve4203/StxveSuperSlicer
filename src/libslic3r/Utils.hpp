@@ -15,6 +15,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/filesystem/path.hpp>
 
 #include "libslic3r.h"
 
